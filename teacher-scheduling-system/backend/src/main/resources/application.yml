@@ -27,21 +27,6 @@ spring:
       connection-timeout: 30000
       pool-name: TeacherSchedulingHikariPool
 
-  jpa:
-    hibernate:
-      ddl-auto: none  # 开发环境自动更新表结构
-      generate-ddl: false   # 不生成DDL
-      naming:
-        # 关键配置：保持表名和列名的原始大小写
-        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
-      show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        format_sql: true
-        use_sql_comments: true
-    open-in-view: false
 
   redis:
     data:
@@ -61,12 +46,24 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+# MyBatis Plus Configuration
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml
+
 logging:
   level:
     com.yl.paike.teacher: DEBUG
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.baomidou.mybatisplus: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

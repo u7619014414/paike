@@ -1,14 +1,11 @@
 package com.yl.paike.teacher.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yl.paike.teacher.dto.*;
 import com.yl.paike.teacher.service.TeacherService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,25 +38,21 @@ public class TeacherController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) List<Integer> ageGroups,
             @RequestParam(required = false) Boolean isActive,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "0") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
-        
-        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? 
-            Sort.Direction.DESC : Sort.Direction.ASC;
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
-        
+
         Page<TeacherDTO> teacherPage = teacherService.getTeacherList(
-            keyword, ageGroups, isActive, pageable);
-        
+            keyword, ageGroups, isActive, pageNum, pageSize, sortBy, sortDir);
+
         PageResult<TeacherDTO> pageResult = new PageResult<>();
-        pageResult.setContent(teacherPage.getContent());
-        pageResult.setTotalElements(teacherPage.getTotalElements());
-        pageResult.setTotalPages(teacherPage.getTotalPages());
-        pageResult.setPage(page);
-        pageResult.setSize(size);
-        
+        pageResult.setContent(teacherPage.getRecords());
+        pageResult.setTotalElements(teacherPage.getTotal());
+        pageResult.setTotalPages(teacherPage.getPages());
+        pageResult.setPage(pageNum);
+        pageResult.setSize(pageSize);
+
         return Result.success(pageResult);
     }
     

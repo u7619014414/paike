@@ -1,21 +1,20 @@
 package com.yl.paike.teacher.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yl.paike.teacher.dto.TeacherCreateDTO;
 import com.yl.paike.teacher.dto.TeacherDTO;
 import com.yl.paike.teacher.dto.TeacherUpdateDTO;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public interface TeacherService {
-    
+
     TeacherDTO createTeacher(TeacherCreateDTO createDTO);
-    
+
     TeacherDTO getTeacherById(Long id);
-    
-    Page<TeacherDTO> getTeacherList(String keyword, List<Integer> ageGroups, Boolean isActive, Pageable pageable);
+
+    Page<TeacherDTO> getTeacherList(String keyword, List<Integer> ageGroups, Boolean isActive, int pageNum, int pageSize, String sortBy, String sortDir);
     
     TeacherDTO updateTeacher(Long id, TeacherUpdateDTO updateDTO);
     

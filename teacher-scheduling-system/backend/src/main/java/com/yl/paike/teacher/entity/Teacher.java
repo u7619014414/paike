@@ -1,11 +1,13 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -13,55 +15,56 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Entity
-@Table(name = "L_TEACHERS")
+@TableName("L_TEACHERS")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Teacher {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "teacher_code", unique = true, nullable = false, length = 20)
+    @TableField("teacher_code")
     private String teacherCode;
 
-    @Column(name = "teacher_name", nullable = false, length = 50)
+    @TableField("teacher_name")
     private String teacherName;
 
-    @Column(name = "phone", nullable = false, length = 15)
+    @TableField("phone")
     private String phone;
 
-    @Column(name = "email", length = 100)
+    @TableField("email")
     private String email;
 
-    @Column(name = "specialties", columnDefinition = "TEXT")
+    @TableField("specialties")
     private String specialties;
 
-    @Column(name = "age_groups", nullable = false, length = 20)
+    @TableField("age_groups")
     private String ageGroups;
 
-    @Column(name = "is_active")
+    @TableField("is_active")
     private Boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    private void generateTeacherCode() {
+    public void generateTeacherCode() {
         if (this.teacherCode == null || this.teacherCode.isEmpty()) {
             this.teacherCode = "TEA" + System.currentTimeMillis();
         }
     }
 
-    @Transient
+    // Transient field for API convenience - not stored in database
+    @TableField(exist = false)
+    private List<Integer> ageGroupList;
+
     public List<Integer> getAgeGroupList() {
+        if (this.ageGroupList != null) {
+            return this.ageGroupList;
+        }
         if (this.ageGroups == null || this.ageGroups.isEmpty()) {
             return new ArrayList<>();
         }
@@ -72,8 +75,8 @@ public class Teacher {
                 .collect(Collectors.toList());
     }
 
-    @Transient
     public void setAgeGroupList(List<Integer> ageGroupList) {
+        this.ageGroupList = ageGroupList;
         if (ageGroupList != null && !ageGroupList.isEmpty()) {
             this.ageGroups = ageGroupList.stream()
                     .map(String::valueOf)

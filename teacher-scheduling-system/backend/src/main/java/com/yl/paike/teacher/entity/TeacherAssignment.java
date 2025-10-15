@@ -1,42 +1,40 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "L_TEACHER_ASSIGNMENTS")
+@TableName("L_TEACHER_ASSIGNMENTS")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class TeacherAssignment {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "teacher_id", nullable = false)
+    @TableField("teacher_id")
     private Long teacherId;
 
-    @Column(name = "course_schedule_id", nullable = false)
+    @TableField("course_schedule_id")
     private Long courseScheduleId;
 
-    @Column(name = "is_main_teacher")
+    @TableField("is_main_teacher")
     private Boolean isMainTeacher = false;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teacher_id", insertable = false, updatable = false)
+    @TableField(exist = false)
     private Teacher teacher;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_schedule_id", insertable = false, updatable = false)
+    @TableField(exist = false)
     private CourseSchedule courseSchedule;
 }

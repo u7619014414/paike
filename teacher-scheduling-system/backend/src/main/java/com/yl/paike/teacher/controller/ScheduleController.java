@@ -1,14 +1,11 @@
 package com.yl.paike.teacher.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yl.paike.teacher.dto.*;
 import com.yl.paike.teacher.service.ScheduleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,23 +43,41 @@ public class ScheduleController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
             @RequestParam(required = false) Integer status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "scheduleDate"));
+            @RequestParam(defaultValue = "0") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        // MyBatis-Plus Page: current is 1-based. 前端使用 0-based pageNum，转换为 1-based
+        Page<CourseScheduleDTO> mybatisPage = new Page<>((long) pageNum + 1L, pageSize);
+
         Page<CourseScheduleDTO> schedulePage = scheduleService.getScheduleList(
-            startDate, endDate, status, pageable);
-        
+            startDate, endDate, status, mybatisPage);
+
         PageResult<CourseScheduleDTO> pageResult = new PageResult<>();
-        pageResult.setContent(schedulePage.getContent());
-        pageResult.setTotalElements(schedulePage.getTotalElements());
-        pageResult.setTotalPages(schedulePage.getTotalPages());
-        pageResult.setPage(page);
-        pageResult.setSize(size);
-        
+        pageResult.setContent(schedulePage.getRecords());
+        pageResult.setTotalElements(schedulePage.getTotal());
+        pageResult.setTotalPages((int) schedulePage.getPages());
+        pageResult.setPage((int) (schedulePage.getCurrent() - 1)); // 转回 0-based
+        pageResult.setSize((int) schedulePage.getSize());
+
         return Result.success(pageResult);
     }
     
+    @PutMapping("/{id}")
+    public Result<CourseScheduleDTO> updateSchedule(
+            @PathVariable Long id,
+            @Valid @RequestBody CourseScheduleCreateDTO updateDTO) {
+        log.info("更新课程安排: ID={}, 课程ID={}", id, updateDTO.getCourseId());
+        CourseScheduleDTO schedule = scheduleService.updateSchedule(id, updateDTO);
+        return Result.success(schedule, "课程安排更新成功");
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteSchedule(@PathVariable Long id) {
+        log.info("删除课程安排: ID={}", id);
+        scheduleService.deleteSchedule(id);
+        return Result.success(null, "课程安排删除成功");
+    }
+
     @PutMapping("/{id}/cancel")
     public Result<Void> cancelSchedule(
             @PathVariable Long id,
@@ -71,7 +86,7 @@ public class ScheduleController {
         scheduleService.cancelSchedule(id, reason);
         return Result.success(null, "课程取消成功");
     }
-    
+
     @GetMapping("/teacher/{teacherId}")
     public Result<List<CourseScheduleDTO>> getTeacherSchedules(
             @PathVariable Long teacherId,

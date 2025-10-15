@@ -1,46 +1,44 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "T_TIME_SLOTS")
+@TableName("T_TIME_SLOTS")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class TimeSlot {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "slot_name", nullable = false, length = 50)
+    @TableField("slot_name")
     private String slotName;
 
-    @Column(name = "start_time", nullable = false)
+    @TableField("start_time")
     private LocalTime startTime;
 
-    @Column(name = "end_time", nullable = false)
+    @TableField("end_time")
     private LocalTime endTime;
 
-    @Column(name = "day_of_week", nullable = false)
+    @TableField("day_of_week")
     private Integer dayOfWeek;
 
-    @Column(name = "is_active")
+    @TableField("is_active")
     private Boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }

@@ -1,53 +1,50 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "J_CLASSROOMS")
+@TableName("J_CLASSROOMS")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Classroom {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "classroom_code", unique = true, nullable = false, length = 20)
+    @TableField("classroom_code")
     private String classroomCode;
 
-    @Column(name = "classroom_name", nullable = false, length = 100)
+    @TableField("classroom_name")
     private String classroomName;
 
-    @Column(name = "max_capacity", nullable = false)
+    @TableField("max_capacity")
     private Integer maxCapacity;
 
-    @Column(name = "location", length = 200)
+    @TableField("location")
     private String location;
 
-    @Column(name = "facilities", columnDefinition = "TEXT")
+    @TableField("facilities")
     private String facilities;
 
-    @Column(name = "is_active")
+    @TableField("is_active")
     private Boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    private void generateClassroomCode() {
+    public void generateClassroomCode() {
         if (this.classroomCode == null || this.classroomCode.isEmpty()) {
             this.classroomCode = "CLS" + System.currentTimeMillis();
         }

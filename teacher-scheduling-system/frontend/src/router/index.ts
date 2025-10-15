@@ -1,41 +1,45 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import MainLayout from '@/components/MainLayout.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
-      redirect: '/schedule'
-    },
-    {
-      path: '/schedule',
-      name: 'Schedule',
-      component: () => import('@/views/ScheduleManagement.vue'),
-      meta: { title: '排课管理' }
-    },
-    {
-      path: '/teachers',
-      name: 'Teachers',
-      component: () => import('@/views/TeacherManagement.vue'),
-      meta: { title: '教师管理' }
-    },
-    {
-      path: '/courses',
-      name: 'Courses',
-      component: () => import('@/views/CourseManagement.vue'),
-      meta: { title: '课程管理' }
-    },
-    {
-      path: '/classrooms',
-      name: 'Classrooms',
-      component: () => import('@/views/ClassroomManagement.vue'),
-      meta: { title: '教室管理' }
-    },
-    {
-      path: '/conflicts',
-      name: 'Conflicts',
-      component: () => import('@/views/ConflictWarnings.vue'),
-      meta: { title: '冲突警告' }
+      component: MainLayout,
+      redirect: '/schedule',
+      children: [
+        {
+          path: 'schedule',
+          name: 'Schedule',
+          component: () => import('@/views/ScheduleManagement.vue'),
+          meta: { title: '排课管理' }
+        },
+        {
+          path: 'timeslot',
+          name: 'TimeSlot',
+          component: () => import('@/views/TimeSlotManagement.vue'),
+          meta: { title: '时间段管理' }
+        },
+        {
+          path: 'classroom',
+          name: 'Classroom',
+          component: () => import('@/views/ClassroomManagement.vue'),
+          meta: { title: '教室管理' }
+        },
+        {
+          path: 'teacher',
+          name: 'Teacher',
+          component: () => import('@/views/TeacherManagement.vue'),
+          meta: { title: '教师管理' }
+        },
+        {
+          path: 'data-conflict',
+          name: 'DataConflict',
+          component: () => import('@/views/DataConflictQuery.vue'),
+          meta: { title: '数据异常查询' }
+        }
+      ]
     }
   ]
 })

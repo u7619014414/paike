@@ -1,0 +1,205 @@
+package com.school.course.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.school.course.entity.*;
+import com.school.course.dto.*;
+import com.school.course.mapper.*;
+import com.school.course.exception.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class CourseService {
+
+    private final CourseScheduleMapper scheduleMapper;
+    private final TimeSlotMapper timeSlotMapper;
+    private final StudentEnrollmentMapper enrollmentMapper;
+    
+    private static final String[] DAY_NAMES = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+    
+     /**
+     * 获取课程表视图（按周显示）
+     */
+    public List<CourseScheduleViewDTO> getWeekScheduleView(Integer studentAgeGroup, LocalDate startDate) {
+        if (startDate == null) {
+            startDate = LocalDate.now();
+        }
+        LocalDate endDate = startDate.plusDays(6);
+
+        List<CourseSchedule> schedules = scheduleMapper.findWeekSchedule(startDate, endDate);
+
+        Map<Integer, CourseScheduleViewDTO> dayMap = new LinkedHashMap<>();
+        for (int i = 1; i <= 7; i++) {
+            CourseScheduleViewDTO dayView = new CourseScheduleViewDTO();
+            dayView.setDayOfWeek(i);
+            dayView.setDayName(DAY_NAMES[i]);
+            dayView.setTimeSlots(new ArrayList<>());
+            dayMap.put(i, dayView);
+        }
+
+        // 获取所有时间段并构造视图映射：按 day_slotId 和按 slotId 两个映射，便于容错查找
+        LambdaQueryWrapper<TimeSlot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TimeSlot::getIsActive, true)
+               .orderByAsc(TimeSlot::getDayOfWeek, TimeSlot::getStartTime);
+        List<TimeSlot> timeSlots = timeSlotMapper.selectList(wrapper);
+
+        Map<String, TimeSlotViewDTO> timeSlotMap = new HashMap<>();
+        Map<Long, TimeSlotViewDTO> timeSlotById = new HashMap<>();
+        for (TimeSlot timeSlot : timeSlots) {
+            if (timeSlot == null) continue;
+            Integer day = timeSlot.getDayOfWeek() == null ? 0 : timeSlot.getDayOfWeek();
+            Long slotId = timeSlot.getId();
+            String key = day + "_" + slotId;
+
+            TimeSlotViewDTO timeSlotView = new TimeSlotViewDTO();
+            timeSlotView.setTimeSlotId(slotId);
+            timeSlotView.setSlotName(timeSlot.getSlotName());
+            timeSlotView.setStartTime(timeSlot.getStartTime());
+            timeSlotView.setEndTime(timeSlot.getEndTime());
+            timeSlotView.setCourses(new ArrayList<>());
+
+            timeSlotMap.put(key, timeSlotView);
+            if (slotId != null) {
+                timeSlotById.put(slotId, timeSlotView);
+            }
+
+            // 保护性获取 dayMap 的 slot 列表（避免 day 越界或 dayMap 缺失）
+            CourseScheduleViewDTO dayView = dayMap.get(day);
+            if (dayView != null) {
+                dayView.getTimeSlots().add(timeSlotView);
+            } else {
+                log.warn("Unexpected dayOfWeek {} for timeSlot id={}", day, slotId);
+            }
+        }
+
+        // 填充课程信息，兼容 schedule.timeSlot 为空的情况
+        for (CourseSchedule schedule : schedules) {
+            try {
+                if (schedule == null) continue;
+
+                TimeSlot slot = schedule.getTimeSlot();
+                TimeSlotViewDTO timeSlotView = null;
+
+                if (slot != null && slot.getId() != null && slot.getDayOfWeek() != null) {
+                    String key = slot.getDayOfWeek() + "_" + slot.getId();
+                    timeSlotView = timeSlotMap.get(key);
+                }
+
+                // 若通过关联实体未找到，则尝试用 timeSlotId 在按 id 的映射中查找
+                if (timeSlotView == null && schedule.getTimeSlotId() != null) {
+                    timeSlotView = timeSlotById.get(schedule.getTimeSlotId());
+                }
+
+                if (timeSlotView != null) {
+                    // buildCourseInfo 可能抛出 NPE（例如 course/classroom 为空），在此捕获并记录
+                    try {
+                        CourseInfoDTO courseInfo = buildCourseInfo(schedule, studentAgeGroup);
+                        if (courseInfo != null) {
+                            timeSlotView.getCourses().add(courseInfo);
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to build course info for schedule id={}", schedule.getId(), e);
+                    }
+                } else {
+                    log.warn("No timeSlot view found for schedule id={} (timeSlotId={})", schedule.getId(), schedule.getTimeSlotId());
+                }
+            } catch (Exception ex) {
+                log.error("Error processing schedule record", ex);
+            }
+        }
+
+        return new ArrayList<>(dayMap.values());
+    }
+    
+    /**
+     * 构建课程信息
+     */
+    private CourseInfoDTO buildCourseInfo(CourseSchedule schedule, Integer studentAgeGroup) {
+        CourseInfoDTO courseInfo = new CourseInfoDTO();
+        if (schedule == null) return courseInfo;
+
+        courseInfo.setCourseId(schedule.getCourseId());
+        courseInfo.setScheduleId(schedule.getId());
+
+        // Course（保护性检查）
+        Course course = schedule.getCourse();
+        if (course != null) {
+            courseInfo.setCourseName(course.getCourseName() == null ? "未知课程" : course.getCourseName());
+            courseInfo.setMaxStudents(course.getMaxStudents() == null ? 0 : course.getMaxStudents());
+            courseInfo.setAgeGroup(course.getAgeGroup());
+        } else {
+            log.warn("Course is null for schedule id={}, courseId={}", schedule.getId(), schedule.getCourseId());
+            courseInfo.setCourseName("未知课程");
+            courseInfo.setMaxStudents(0);
+            courseInfo.setAgeGroup(null);
+        }
+
+        // Classroom（保护性检查）
+        Classroom classroom = schedule.getClassroom();
+        if (classroom != null) {
+            courseInfo.setClassroomName(classroom.getClassroomName() == null ? "未知教室" : classroom.getClassroomName());
+        } else {
+            courseInfo.setClassroomName("未知教室");
+        }
+
+        // 获取当前选课人数（保持原调用）
+        Integer currentStudents = enrollmentMapper.countEnrolledStudents(schedule.getId());
+        courseInfo.setCurrentStudents(currentStudents == null ? 0 : currentStudents);
+
+        // 教师信息
+        String teacherNames = (course != null) ? course.getTeacherNames() : null;
+        if (teacherNames != null && !teacherNames.isEmpty()) {
+            courseInfo.setTeacherNames(Arrays.asList(teacherNames.split(",")));
+        } else {
+            courseInfo.setTeacherNames(Arrays.asList("张三", "李四"));
+        }
+
+        // 判断课程状态和是否可选（determineStatus 已改为容错）
+        String status = determineStatus(schedule, currentStudents, studentAgeGroup);
+        courseInfo.setStatus(status);
+        boolean canEnroll = "AVAILABLE".equals(status)
+                && course != null
+                && course.getAgeGroup() != null
+                && course.getAgeGroup().equals(studentAgeGroup);
+        courseInfo.setCanEnroll(canEnroll);
+
+        return courseInfo;
+    }
+
+    /**
+     * 确定课程状态（增加对 course 为 null 的保护）
+     */
+    private String determineStatus(CourseSchedule schedule, Integer currentStudents, Integer studentAgeGroup) {
+        Course course = (schedule == null) ? null : schedule.getCourse();
+
+        if (course == null) {
+            return "DISABLED";
+        }
+
+        // 年龄组不匹配，显示灰色
+        if (course.getAgeGroup() == null || !course.getAgeGroup().equals(studentAgeGroup)) {
+            return "DISABLED";
+        }
+
+        // 已满，显示红色
+        if (currentStudents != null && course.getMaxStudents() != null && currentStudents >= course.getMaxStudents()) {
+            return "FULL";
+        }
+
+        // 有人选课但未满，显示黄色
+        if (currentStudents != null && currentStudents > 0) {
+            return "AVAILABLE";
+        }
+
+        // 无人选课，显示白色
+        return "EMPTY";
+    }
+}

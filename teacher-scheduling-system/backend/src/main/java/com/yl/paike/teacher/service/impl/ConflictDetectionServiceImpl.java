@@ -1,5 +1,7 @@
 package com.yl.paike.teacher.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yl.paike.teacher.dto.ConflictCheckResult;
 import com.yl.paike.teacher.dto.ConflictWarningDTO;
 import com.yl.paike.teacher.entity.ConflictWarning;
@@ -7,15 +9,11 @@ import com.yl.paike.teacher.entity.CourseSchedule;
 import com.yl.paike.teacher.entity.Teacher;
 import com.yl.paike.teacher.entity.TeacherAssignment;
 import com.yl.paike.teacher.exception.EntityNotFoundException;
-import com.yl.paike.teacher.repository.*;
+import com.yl.paike.teacher.mapper.*;
 import com.yl.paike.teacher.service.ConflictDetectionService;
 import com.yl.paike.teacher.util.Constants;
-import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,133 +21,137 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class ConflictDetectionServiceImpl implements ConflictDetectionService {
-    
-    private final TeacherAssignmentRepository assignmentRepository;
-    private final ConflictWarningRepository conflictWarningRepository;
-    private final CourseScheduleRepository scheduleRepository;
-    private final TeacherRepository teacherRepository;
-    private final TimeSlotRepository timeSlotRepository;
+
+    private final TeacherAssignmentMapper assignmentMapper;
+    private final ConflictWarningMapper conflictWarningMapper;
+    private final CourseScheduleMapper scheduleMapper;
+    private final TeacherMapper teacherMapper;
+    private final TimeSlotMapper timeSlotMapper;
     
     @Override
     public ConflictCheckResult checkTeacherConflicts(List<Long> teacherIds, LocalDate date, Long timeSlotId) {
         ConflictCheckResult result = new ConflictCheckResult();
         List<String> conflicts = new ArrayList<>();
-        
+
         for (Long teacherId : teacherIds) {
-            List<TeacherAssignment> existingAssignments = 
-                assignmentRepository.findConflictingAssignments(teacherId, date, timeSlotId);
-            
+            List<TeacherAssignment> existingAssignments =
+                assignmentMapper.findConflictingAssignments(teacherId, date, timeSlotId);
+
             if (!existingAssignments.isEmpty()) {
                 String teacherName = getTeacherName(teacherId);
                 String timeSlotName = getTimeSlotName(timeSlotId);
                 conflicts.add(String.format("教师 %s 在 %s 已有课程安排", teacherName, timeSlotName));
-                
+
                 recordConflictWarning(
-                    Constants.CONFLICT_TYPE_TEACHER, 
-                    teacherId, 
-                    date, 
+                    Constants.CONFLICT_TYPE_TEACHER,
+                    teacherId,
+                    date,
                     timeSlotId,
                     String.format("教师时间冲突：%s", teacherName)
                 );
             }
         }
-        
+
         result.setHasConflicts(!conflicts.isEmpty());
         result.setConflictDescription(String.join("；", conflicts));
-        
+
         return result;
     }
-    
+
     @Override
     public ConflictCheckResult checkClassroomConflicts(Long classroomId, LocalDate date, Long timeSlotId) {
         ConflictCheckResult result = new ConflictCheckResult();
-        
-        Optional<CourseSchedule> conflict = scheduleRepository.findConflictSchedule(
+
+        CourseSchedule conflict = scheduleMapper.findConflictSchedule(
             timeSlotId, classroomId, date);
-        
-        if (conflict.isPresent()) {
+
+        if (conflict != null) {
             String timeSlotName = getTimeSlotName(timeSlotId);
             String conflictDescription = String.format(
-                "教室在 %s %s 已被占用", 
-                date, 
+                "教室在 %s %s 已被占用",
+                date,
                 timeSlotName
             );
-            
+
             result.setHasConflicts(true);
             result.setConflictDescription(conflictDescription);
-            
+
             recordConflictWarning(
-                Constants.CONFLICT_TYPE_CLASSROOM, 
-                classroomId, 
-                date, 
+                Constants.CONFLICT_TYPE_CLASSROOM,
+                classroomId,
+                date,
                 timeSlotId,
                 conflictDescription
             );
         }
-        
+
         return result;
     }
     
     @Override
     public Page<ConflictWarningDTO> getConflictWarnings(Integer conflictType, Integer status,
                                                         LocalDate startDate, LocalDate endDate,
-                                                        Pageable pageable) {
-        Specification<ConflictWarning> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            
-            if (conflictType != null) {
-                predicates.add(cb.equal(root.get("conflictType"), conflictType));
-            }
-            
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-            
-            if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("conflictDate"), startDate));
-            }
-            
-            if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("conflictDate"), endDate));
-            }
-            
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-        
-        Page<ConflictWarning> warningPage = conflictWarningRepository.findAll(spec, pageable);
-        return warningPage.map(this::convertToWarningDTO);
+                                                        int pageNum, int pageSize) {
+        LambdaQueryWrapper<ConflictWarning> wrapper = new LambdaQueryWrapper<>();
+
+        if (conflictType != null) {
+            wrapper.eq(ConflictWarning::getConflictType, conflictType);
+        }
+
+        if (status != null) {
+            wrapper.eq(ConflictWarning::getStatus, status);
+        }
+
+        if (startDate != null) {
+            wrapper.ge(ConflictWarning::getConflictDate, startDate);
+        }
+
+        if (endDate != null) {
+            wrapper.le(ConflictWarning::getConflictDate, endDate);
+        }
+
+        Page<ConflictWarning> page = new Page<>(pageNum + 1, pageSize);
+        Page<ConflictWarning> warningPage = conflictWarningMapper.selectPage(page, wrapper);
+
+        Page<ConflictWarningDTO> dtoPage = new Page<>(warningPage.getCurrent(), warningPage.getSize(), warningPage.getTotal());
+        dtoPage.setRecords(warningPage.getRecords().stream()
+            .map(this::convertToWarningDTO)
+            .collect(Collectors.toList()));
+
+        return dtoPage;
     }
-    
+
     @Override
     @Transactional
     public void resolveConflictWarning(Long warningId, Integer resolution, String remark) {
-        ConflictWarning warning = conflictWarningRepository.findById(warningId)
-            .orElseThrow(() -> new EntityNotFoundException("冲突警告", warningId));
-        
+        ConflictWarning warning = conflictWarningMapper.selectById(warningId);
+        if (warning == null) {
+            throw new EntityNotFoundException("冲突警告", warningId);
+        }
+
         warning.setStatus(resolution);
-        conflictWarningRepository.save(warning);
-        
+        conflictWarningMapper.updateById(warning);
+
         log.info("冲突警告处理完成，警告ID：{}，处理结果：{}", warningId, resolution);
     }
-    
+
     @Override
     @Transactional
     public void performFullConflictCheck(LocalDate startDate, LocalDate endDate) {
         log.info("开始执行全面冲突检测，日期范围：{} 至 {}", startDate, endDate);
-        
-        List<CourseSchedule> schedules = scheduleRepository.findByDateRange(startDate, endDate);
-        
+
+        List<CourseSchedule> schedules = scheduleMapper.findByDateRange(startDate, endDate);
+
         log.info("全面冲突检测完成");
     }
     
-    private void recordConflictWarning(Integer conflictType, Long relatedId, LocalDate date, 
+    private void recordConflictWarning(Integer conflictType, Long relatedId, LocalDate date,
                                      Long timeSlotId, String description) {
         ConflictWarning warning = new ConflictWarning();
         warning.setConflictType(conflictType);
@@ -158,21 +160,21 @@ public class ConflictDetectionServiceImpl implements ConflictDetectionService {
         warning.setConflictDate(date);
         warning.setTimeSlotId(timeSlotId);
         warning.setStatus(Constants.WARNING_STATUS_UNRESOLVED);
-        
-        conflictWarningRepository.save(warning);
+
+        conflictWarningMapper.insert(warning);
     }
-    
+
     private String getTeacherName(Long teacherId) {
-        return teacherRepository.findById(teacherId)
-            .map(Teacher::getTeacherName)
-            .orElse("未知教师");
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        return teacher != null ? teacher.getTeacherName() : "未知教师";
     }
-    
+
     private String getTimeSlotName(Long timeSlotId) {
-        return timeSlotRepository.findById(timeSlotId)
-            .map(slot -> slot.getSlotName() + " " + 
-                        slot.getStartTime() + "-" + slot.getEndTime())
-            .orElse("未知时间段");
+        com.yl.paike.teacher.entity.TimeSlot slot = timeSlotMapper.selectById(timeSlotId);
+        if (slot != null) {
+            return slot.getSlotName() + " " + slot.getStartTime() + "-" + slot.getEndTime();
+        }
+        return "未知时间段";
     }
     
     private ConflictWarningDTO convertToWarningDTO(ConflictWarning warning) {

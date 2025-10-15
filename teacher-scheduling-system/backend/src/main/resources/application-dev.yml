@@ -1,17 +1,14 @@
 spring:
-  jpa:
-    hibernate:
-      ddl-auto: none
-      naming:
-        # 注意：这里的配置格式要正确
-        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
-      generate-ddl: false   # 不生成DDL
-      show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+  config:
+    activate:
+      on-profile: dev
+
+# MyBatis Plus 开发环境配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 logging:
   level:
     com.yl.paike.teacher: DEBUG
+    com.baomidou.mybatisplus: DEBUG

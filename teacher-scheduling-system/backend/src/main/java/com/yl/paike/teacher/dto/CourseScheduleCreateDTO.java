@@ -1,11 +1,15 @@
 package com.yl.paike.teacher.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class CourseScheduleCreateDTO {
     
     @NotNull(message = "课程ID不能为空")

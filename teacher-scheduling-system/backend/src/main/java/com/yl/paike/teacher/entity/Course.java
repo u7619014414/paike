@@ -1,53 +1,50 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "K_COURSES")
+@TableName("K_COURSES")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Course {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "course_code", unique = true, nullable = false, length = 20)
+    @TableField("course_code")
     private String courseCode;
 
-    @Column(name = "course_name", nullable = false, length = 100)
+    @TableField("course_name")
     private String courseName;
 
-    @Column(name = "age_group", nullable = false)
+    @TableField("age_group")
     private Integer ageGroup;
 
-    @Column(name = "max_students", nullable = false)
+    @TableField("max_students")
     private Integer maxStudents;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @TableField("description")
     private String description;
 
-    @Column(name = "is_active")
+    @TableField("is_active")
     private Boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    private void generateCourseCode() {
+    public void generateCourseCode() {
         if (this.courseCode == null || this.courseCode.isEmpty()) {
             this.courseCode = "COU" + System.currentTimeMillis();
         }

@@ -1,22 +1,20 @@
 package com.yl.paike.teacher.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yl.paike.teacher.dto.*;
 import com.yl.paike.teacher.entity.Teacher;
 import com.yl.paike.teacher.exception.BusinessException;
 import com.yl.paike.teacher.exception.EntityNotFoundException;
-import com.yl.paike.teacher.repository.TeacherAssignmentRepository;
-import com.yl.paike.teacher.repository.TeacherRepository;
+import com.yl.paike.teacher.mapper.TeacherAssignmentMapper;
+import com.yl.paike.teacher.mapper.TeacherMapper;
 import com.yl.paike.teacher.service.TeacherService;
 import com.yl.paike.teacher.util.BeanConverter;
 import com.yl.paike.teacher.util.Constants;
-import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,16 +28,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TeacherServiceImpl implements TeacherService {
 
-    private final TeacherRepository teacherRepository;
-    private final TeacherAssignmentRepository assignmentRepository;
+    private final TeacherMapper teacherMapper;
+    private final TeacherAssignmentMapper assignmentMapper;
 
     @Override
     @Transactional
     public TeacherDTO createTeacher(TeacherCreateDTO createDTO) {
         // 检查手机号是否已存在
-        teacherRepository.findByPhone(createDTO.getPhone()).ifPresent(t -> {
+        Teacher existingTeacher = teacherMapper.findByPhone(createDTO.getPhone());
+        if (existingTeacher != null) {
             throw new BusinessException("该手机号已被注册");
-        });
+        }
 
         Teacher teacher = new Teacher();
         teacher.setTeacherName(createDTO.getTeacherName());
@@ -48,59 +47,77 @@ public class TeacherServiceImpl implements TeacherService {
         teacher.setSpecialties(createDTO.getSpecialties());
         teacher.setAgeGroupList(createDTO.getAgeGroups());
         teacher.setIsActive(true);
+        teacher.generateTeacherCode(); // 生成教师编号
 
-        Teacher savedTeacher = teacherRepository.save(teacher);
-        log.info("教师创建成功，教师编号：{}", savedTeacher.getTeacherCode());
+        teacherMapper.insert(teacher);
+        log.info("教师创建成功，教师编号：{}", teacher.getTeacherCode());
 
-        return convertToDTO(savedTeacher);
+        return convertToDTO(teacher);
     }
 
     @Override
     @Cacheable(value = "teachers", key = "#id")
     public TeacherDTO getTeacherById(Long id) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("教师", id));
+        Teacher teacher = teacherMapper.selectById(id);
+        if (teacher == null) {
+            throw new EntityNotFoundException("教师", id);
+        }
         return convertToDTO(teacher);
     }
 
     @Override
     public Page<TeacherDTO> getTeacherList(String keyword, List<Integer> ageGroups,
-                                           Boolean isActive, Pageable pageable) {
-        Specification<Teacher> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+                                           Boolean isActive, int pageNum, int pageSize,
+                                           String sortBy, String sortDir) {
+        LambdaQueryWrapper<Teacher> wrapper = new LambdaQueryWrapper<>();
 
-            if (keyword != null && !keyword.trim().isEmpty()) {
-                String likePattern = "%" + keyword + "%";
-                Predicate namePredicate = cb.like(root.get("teacherName"), likePattern);
-                Predicate phonePredicate = cb.like(root.get("phone"), likePattern);
-                predicates.add(cb.or(namePredicate, phonePredicate));
-            }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            wrapper.and(w -> w.like(Teacher::getTeacherName, keyword)
+                             .or()
+                             .like(Teacher::getPhone, keyword));
+        }
 
-            if (ageGroups != null && !ageGroups.isEmpty()) {
-                List<Predicate> ageGroupPredicates = new ArrayList<>();
-                for (Integer ageGroup : ageGroups) {
-                    ageGroupPredicates.add(cb.like(root.get("ageGroups"), "%" + ageGroup + "%"));
+        if (ageGroups != null && !ageGroups.isEmpty()) {
+            wrapper.and(w -> {
+                for (int i = 0; i < ageGroups.size(); i++) {
+                    if (i > 0) {
+                        w.or();
+                    }
+                    w.like(Teacher::getAgeGroups, String.valueOf(ageGroups.get(i)));
                 }
-                predicates.add(cb.or(ageGroupPredicates.toArray(new Predicate[0])));
-            }
+            });
+        }
 
-            if (isActive != null) {
-                predicates.add(cb.equal(root.get("isActive"), isActive));
-            }
+        if (isActive != null) {
+            wrapper.eq(Teacher::getIsActive, isActive);
+        }
 
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        // Add sorting
+        if ("desc".equalsIgnoreCase(sortDir)) {
+            wrapper.orderByDesc(Teacher::getCreatedAt);
+        } else {
+            wrapper.orderByAsc(Teacher::getCreatedAt);
+        }
 
-        Page<Teacher> teacherPage = teacherRepository.findAll(spec, pageable);
-        return teacherPage.map(this::convertToDTO);
+        Page<Teacher> page = new Page<>(pageNum + 1, pageSize); // MyBatis Plus页码从1开始
+        Page<Teacher> teacherPage = teacherMapper.selectPage(page, wrapper);
+
+        Page<TeacherDTO> dtoPage = new Page<>(teacherPage.getCurrent(), teacherPage.getSize(), teacherPage.getTotal());
+        dtoPage.setRecords(teacherPage.getRecords().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList()));
+
+        return dtoPage;
     }
 
     @Override
     @Transactional
     @CacheEvict(value = "teachers", key = "#id")
     public TeacherDTO updateTeacher(Long id, TeacherUpdateDTO updateDTO) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("教师", id));
+        Teacher teacher = teacherMapper.selectById(id);
+        if (teacher == null) {
+            throw new EntityNotFoundException("教师", id);
+        }
 
         if (updateDTO.getTeacherName() != null) {
             teacher.setTeacherName(updateDTO.getTeacherName());
@@ -108,11 +125,10 @@ public class TeacherServiceImpl implements TeacherService {
 
         if (updateDTO.getPhone() != null) {
             // 检查新手机号是否被其他教师使用
-            teacherRepository.findByPhone(updateDTO.getPhone()).ifPresent(existingTeacher -> {
-                if (!existingTeacher.getId().equals(id)) {
-                    throw new BusinessException("该手机号已被其他教师使用");
-                }
-            });
+            Teacher existingTeacher = teacherMapper.findByPhone(updateDTO.getPhone());
+            if (existingTeacher != null && !existingTeacher.getId().equals(id)) {
+                throw new BusinessException("该手机号已被其他教师使用");
+            }
             teacher.setPhone(updateDTO.getPhone());
         }
 
@@ -128,30 +144,32 @@ public class TeacherServiceImpl implements TeacherService {
             teacher.setAgeGroupList(updateDTO.getAgeGroups());
         }
 
-        Teacher savedTeacher = teacherRepository.save(teacher);
+        teacherMapper.updateById(teacher);
         log.info("教师信息更新成功，教师ID：{}", id);
 
-        return convertToDTO(savedTeacher);
+        return convertToDTO(teacher);
     }
 
     @Override
     @Transactional
     @CacheEvict(value = "teachers", key = "#id")
     public void deleteTeacher(Long id) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("教师", id));
+        Teacher teacher = teacherMapper.selectById(id);
+        if (teacher == null) {
+            throw new EntityNotFoundException("教师", id);
+        }
 
         // 检查教师是否有未完成的课程安排
         LocalDate today = LocalDate.now();
         List<com.yl.paike.teacher.entity.TeacherAssignment> futureAssignments =
-                assignmentRepository.findByTeacherIdAndDateRange(id, today, today.plusMonths(3));
+                assignmentMapper.findByTeacherIdAndDateRange(id, today, today.plusMonths(3));
 
         if (!futureAssignments.isEmpty()) {
             throw new BusinessException("教师有未完成的课程安排，无法删除");
         }
 
         teacher.setIsActive(false);
-        teacherRepository.save(teacher);
+        teacherMapper.updateById(teacher);
 
         log.info("教师删除成功，教师ID：{}", id);
     }
@@ -159,14 +177,14 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     public List<TeacherDTO> getAvailableTeachers(Integer ageGroup, LocalDate date, Long timeSlotId) {
         // 获取符合年龄组要求的活跃教师
-        List<Teacher> eligibleTeachers = teacherRepository.findByAgeGroupAndActive(String.valueOf(ageGroup));
+        List<Teacher> eligibleTeachers = teacherMapper.findByAgeGroupAndActive(String.valueOf(ageGroup));
 
         List<TeacherDTO> availableTeachers = new ArrayList<>();
 
         for (Teacher teacher : eligibleTeachers) {
             // 检查教师在指定时间是否有冲突
             List<com.yl.paike.teacher.entity.TeacherAssignment> conflicts =
-                    assignmentRepository.findConflictingAssignments(teacher.getId(), date, timeSlotId);
+                    assignmentMapper.findConflictingAssignments(teacher.getId(), date, timeSlotId);
 
             if (conflicts.isEmpty()) {
                 availableTeachers.add(convertToDTO(teacher));

@@ -1,5 +1,6 @@
 package com.yl.paike.teacher.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yl.paike.teacher.dto.CourseCreateDTO;
 import com.yl.paike.teacher.dto.CourseDTO;
 import com.yl.paike.teacher.dto.PageResult;
@@ -8,10 +9,6 @@ import com.yl.paike.teacher.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,19 +38,18 @@ public class CourseController {
     public Result<PageResult<CourseDTO>> getCourseList(
             @RequestParam(required = false) Integer ageGroup,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<CourseDTO> coursePage = courseService.getCourseList(ageGroup, keyword, pageable);
-        
+            @RequestParam(defaultValue = "0") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        Page<CourseDTO> coursePage = courseService.getCourseList(ageGroup, keyword, pageNum, pageSize);
+
         PageResult<CourseDTO> pageResult = new PageResult<>();
-        pageResult.setContent(coursePage.getContent());
-        pageResult.setTotalElements(coursePage.getTotalElements());
-        pageResult.setTotalPages(coursePage.getTotalPages());
-        pageResult.setPage(page);
-        pageResult.setSize(size);
-        
+        pageResult.setContent(coursePage.getRecords());
+        pageResult.setTotalElements(coursePage.getTotal());
+        pageResult.setTotalPages(coursePage.getPages());
+        pageResult.setPage(pageNum);
+        pageResult.setSize(pageSize);
+
         return Result.success(pageResult);
     }
     

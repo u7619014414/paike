@@ -2,7 +2,7 @@ package com.yl.paike.teacher.service.impl;
 
 import com.yl.paike.teacher.dto.TimeSlotDTO;
 import com.yl.paike.teacher.entity.TimeSlot;
-import com.yl.paike.teacher.repository.TimeSlotRepository;
+import com.yl.paike.teacher.mapper.TimeSlotMapper;
 import com.yl.paike.teacher.service.TimeSlotService;
 import com.yl.paike.teacher.util.BeanConverter;
 import com.yl.paike.teacher.util.Constants;
@@ -15,20 +15,20 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TimeSlotServiceImpl implements TimeSlotService {
-    
-    private final TimeSlotRepository timeSlotRepository;
-    
+
+    private final TimeSlotMapper timeSlotMapper;
+
     @Override
     public List<TimeSlotDTO> getAllActiveTimeSlots() {
-        List<TimeSlot> timeSlots = timeSlotRepository.findByIsActiveTrueOrderByDayOfWeekAscStartTimeAsc();
+        List<TimeSlot> timeSlots = timeSlotMapper.findByIsActiveTrueOrderByDayOfWeekAscStartTimeAsc();
         return timeSlots.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
-    
+
     @Override
     public List<TimeSlotDTO> getTimeSlotsByDayOfWeek(Integer dayOfWeek) {
-        List<TimeSlot> timeSlots = timeSlotRepository.findByDayOfWeekAndIsActiveTrue(dayOfWeek);
+        List<TimeSlot> timeSlots = timeSlotMapper.findByDayOfWeekAndIsActiveTrue(dayOfWeek);
         return timeSlots.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());

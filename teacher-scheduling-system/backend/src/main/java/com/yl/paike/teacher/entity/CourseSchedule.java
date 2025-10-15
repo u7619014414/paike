@@ -1,58 +1,53 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "T_COURSE_SCHEDULE")
+@TableName("T_COURSE_SCHEDULE")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CourseSchedule {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "course_id", nullable = false)
+    @TableField("course_id")
     private Long courseId;
 
-    @Column(name = "time_slot_id", nullable = false)
+    @TableField("time_slot_id")
     private Long timeSlotId;
 
-    @Column(name = "classroom_id", nullable = false)
+    @TableField("classroom_id")
     private Long classroomId;
 
-    @Column(name = "schedule_date", nullable = false)
+    @TableField("schedule_date")
     private LocalDate scheduleDate;
 
-    @Column(name = "status")
+    @TableField("status")
     private Integer status = 1;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_id", insertable = false, updatable = false)
+    @TableField(exist = false)
     private Course course;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "time_slot_id", insertable = false, updatable = false)
+    @TableField(exist = false)
     private TimeSlot timeSlot;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "classroom_id", insertable = false, updatable = false)
+    @TableField(exist = false)
     private Classroom classroom;
 }

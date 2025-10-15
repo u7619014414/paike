@@ -12,7 +12,8 @@ import java.util.List;
 public class PageResult<T> {
     private List<T> content;
     private Long totalElements;
-    private Integer totalPages;
+    // 改为 long，兼容不同处传 long/int
+    private long totalPages;
     private Integer page;
     private Integer size;
 }

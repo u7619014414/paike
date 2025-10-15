@@ -1,0 +1,55 @@
+# src/main/resources/application-dev.yml
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+
+  datasource:
+    url: jdbc:mysql://asdnn.com:45306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:school_user}
+    password: ${MYSQL_PASSWORD:school_pass123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+  data:
+    redis:
+      url: redis://asdnn.com:45379
+
+      # 推荐使用 url 形式，支持带/不带密码的连接
+      # 如果有密码，替换下面的空字符串或删除该行
+      password: ""
+      timeout: 60000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 10000ms
+    #cache:
+        # 启用 Redis 缓存（如需禁用改为 simple）
+        #type: redis
+        # 开发环境下禁用缓存
+        cache:
+          type: simple
+# MyBatis Plus 开发环境配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 开发环境日志配置
+logging:
+  level:
+    root: INFO
+    com.school.course: DEBUG
+    org.springframework.web: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+
+server:
+  port: 45081
+  error:
+    include-stacktrace: always  # 开发环境显示完整错误堆栈

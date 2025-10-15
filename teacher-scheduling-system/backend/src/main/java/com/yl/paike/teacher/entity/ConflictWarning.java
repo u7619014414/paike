@@ -1,49 +1,47 @@
 package com.yl.paike.teacher.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "SYS_CONFLICT_WARNINGS")
+@TableName("SYS_CONFLICT_WARNINGS")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConflictWarning {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "conflict_type", nullable = false)
+    @TableField("conflict_type")
     private Integer conflictType;
 
-    @Column(name = "conflict_description", nullable = false, columnDefinition = "TEXT")
+    @TableField("conflict_description")
     private String conflictDescription;
 
-    @Column(name = "related_ids", length = 200)
+    @TableField("related_ids")
     private String relatedIds;
 
-    @Column(name = "conflict_date", nullable = false)
+    @TableField("conflict_date")
     private LocalDate conflictDate;
 
-    @Column(name = "time_slot_id")
+    @TableField("time_slot_id")
     private Long timeSlotId;
 
-    @Column(name = "status")
+    @TableField("status")
     private Integer status = 1;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }
