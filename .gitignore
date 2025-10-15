@@ -47,3 +47,8 @@ components.d.ts
 *.bak
 *.cache
 nul
+
+# Git credentials and security tokens
+github-token.txt
+.git-credentials
+*.token
