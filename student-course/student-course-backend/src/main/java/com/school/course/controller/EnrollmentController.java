@@ -7,6 +7,7 @@ import com.school.course.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/enrollments")
@@ -34,5 +35,14 @@ public class EnrollmentController {
                                               @RequestParam Long courseScheduleId) {
         enrollmentService.cancelEnrollment(studentId, courseScheduleId);
         return ApiResponse.success(null, "取消选课成功");
+    }
+
+    /**
+     * 获取学生的选课列表
+     */
+    @GetMapping("/student/{studentId}")
+    public ApiResponse<List<Long>> getStudentEnrollments(@PathVariable Long studentId) {
+        List<Long> scheduleIds = enrollmentService.getStudentEnrolledScheduleIds(studentId);
+        return ApiResponse.success(scheduleIds);
     }
 }

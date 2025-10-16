@@ -53,5 +53,8 @@ export const enrollmentApi = {
   cancelEnrollment: (studentId: number, courseScheduleId: number) =>
     request.delete('/enrollments', {
       params: { studentId, courseScheduleId }
-    })
+    }),
+  // 获取学生已选课程列表
+  getStudentEnrollments: (studentId: number) =>
+    request.get<number[]>(`/enrollments/student/${studentId}`)
 }

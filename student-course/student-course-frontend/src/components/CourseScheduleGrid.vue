@@ -57,6 +57,7 @@
             :key="course.scheduleId"
             :course="course"
             :current-student="currentStudent"
+            @card-click="handleCardClick"
             @enroll-course="handleEnrollCourse"
             @cancel-enrollment="handleCancelEnrollment"
           />
@@ -72,6 +73,15 @@
       <el-icon class="loading-icon"><Loading /></el-icon>
       <span>加载中...</span>
     </div>
+
+    <!-- 选课对话框 -->
+    <EnrollmentDialog
+      v-model="showEnrollmentDialog"
+      :course="selectedCourse"
+      :current-student="currentStudent"
+      :loading="enrollmentLoading"
+      @confirm="handleConfirmEnrollment"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -80,6 +90,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowRight, Loading, CirclePlus } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import CourseCard from './CourseCard.vue'
+import EnrollmentDialog from './EnrollmentDialog.vue'
 import { useCourseStore } from '@/stores/course'
 import type { Student, CourseInfo } from '@/types'
 import { AGE_GROUPS, WEEK_DAYS } from '@/types'
@@ -91,7 +102,11 @@ const courseStore = useCourseStore()
 const loading = computed(() => courseStore.loading)
 const scheduleData = computed(() => courseStore.scheduleData)
 // 响应式数据
-const currentWeekStart = ref(dayjs().startOf('week'))
+// 使用 isoWeek 确保周一为一周的开始
+const currentWeekStart = ref(dayjs().startOf('isoWeek'))
+const showEnrollmentDialog = ref(false)
+const selectedCourse = ref<CourseInfo | null>(null)
+const enrollmentLoading = ref(false)
 // 时间段定义
 const timeSlots = [
   { name: '早班', startTime: '09:00', endTime: '11:00' },
@@ -104,10 +119,13 @@ const currentWeekEnd = computed(() => currentWeekStart.value.add(6, 'day'))
 // 方法
 const loadScheduleData = async () => {
   if (!props.currentStudent) return
-  await courseStore.fetchScheduleView(
-    props.currentStudent.ageGroup,
-    currentWeekStart.value.format('YYYY-MM-DD')
-  )
+  await Promise.all([
+    courseStore.fetchScheduleView(
+      props.currentStudent.ageGroup,
+      currentWeekStart.value.format('YYYY-MM-DD')
+    ),
+    courseStore.fetchStudentEnrollments(props.currentStudent.id)
+  ])
 }
 const getCoursesForSlot = (dayOfWeek: number, timeSlotName: string): CourseInfo[] => {
   const dayData = scheduleData.value.find(d => d.dayOfWeek === dayOfWeek)
@@ -116,11 +134,14 @@ const getCoursesForSlot = (dayOfWeek: number, timeSlotName: string): CourseInfo[
   return slotData?.courses || []
 }
 const isToday = (dayOfWeek: number): boolean => {
-  return dayjs().day() === dayOfWeek || (dayOfWeek === 7 && dayjs().day() === 0)
+  const today = dayjs()
+  const targetDate = currentWeekStart.value.add(dayOfWeek - 1, 'day')
+  return today.isSame(targetDate, 'day')
 }
 const getDateForDay = (dayOfWeek: number): string => {
-  const adjustedDay = dayOfWeek === 7 ? 0 : dayOfWeek
-  return currentWeekStart.value.day(adjustedDay).format('MM/DD')
+  // dayOfWeek: 1=周一, 2=周二, ..., 7=周日
+  // 从当前周的周一开始,加上对应的天数
+  return currentWeekStart.value.add(dayOfWeek - 1, 'day').format('MM/DD')
 }
 const formatDateRange = (start: dayjs.Dayjs, end: dayjs.Dayjs): string => {
   return `${start.format('YYYY年MM月DD日')} - ${end.format('MM月DD日')}`
@@ -135,7 +156,25 @@ const nextWeek = () => {
   currentWeekStart.value = currentWeekStart.value.add(1, 'week')
 }
 const goToCurrentWeek = () => {
-  currentWeekStart.value = dayjs().startOf('week')
+  currentWeekStart.value = dayjs().startOf('isoWeek')
+}
+const handleCardClick = (course: CourseInfo) => {
+  selectedCourse.value = course
+  showEnrollmentDialog.value = true
+}
+const handleConfirmEnrollment = async (course: CourseInfo) => {
+  if (!props.currentStudent) return
+  enrollmentLoading.value = true
+  try {
+    await courseStore.enrollCourse(props.currentStudent.id, course.scheduleId)
+    ElMessage.success('选课成功！')
+    showEnrollmentDialog.value = false
+    await loadScheduleData()
+  } catch (error) {
+    // 错误信息由拦截器处理
+  } finally {
+    enrollmentLoading.value = false
+  }
 }
 const handleEnrollCourse = async (courseCard: CourseInfo) => {
   if (!props.currentStudent) return

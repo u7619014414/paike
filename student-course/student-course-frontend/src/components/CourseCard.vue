@@ -1,15 +1,16 @@
 <template>
-  <div 
+  <div
     class="course-card"
     :class="[
       `status-${course.status.toLowerCase()}`,
       { 'can-enroll': course.canEnroll && currentStudent }
     ]"
+    @click="handleCardClick"
   >
     <div class="course-header">
       <h4 class="course-name">{{ course.courseName }}</h4>
-      <div class="student-count">
-        {{ course.currentStudents }}/{{ course.maxStudents }}
+      <div class="student-count" :class="{ 'count-warning': course.currentStudents >= (course.classroomCapacity || course.maxStudents) }">
+        {{ course.currentStudents }}/{{ course.classroomCapacity || course.maxStudents }}
       </div>
     </div>
     <div class="course-details">
@@ -21,24 +22,29 @@
         <el-icon><User /></el-icon>
         <span>{{ course.teacherNames.join(', ') }}</span>
       </div>
+      <div class="detail-item age-group-info">
+        <el-tag :type="getAgeGroupTagType()" size="small" effect="plain">
+          {{ getAgeGroupLabel(course.ageGroup) }}
+        </el-tag>
+      </div>
     </div>
     <div class="course-actions" v-if="currentStudent">
-      <el-button 
-        v-if="course.canEnroll && course.status !== 'FULL'"
-        type="primary" 
+      <el-button
+        v-if="isEnrolled"
+        type="danger"
+        size="small"
+        @click="handleCancelEnrollment"
+      >
+        取消
+      </el-button>
+      <el-button
+        v-else-if="course.canEnroll && course.status !== 'FULL'"
+        type="primary"
         size="small"
         :disabled="course.status === 'DISABLED'"
         @click="handleEnroll"
       >
         选课
-      </el-button>
-      <el-button 
-        v-else-if="isEnrolled"
-        type="danger" 
-        size="small"
-        @click="handleCancelEnrollment"
-      >
-        取消
       </el-button>
       <span v-else-if="course.status === 'FULL'" class="status-text full">
         已满
@@ -55,24 +61,48 @@
 import { computed } from 'vue'
 import { Location, User } from '@element-plus/icons-vue'
 import type { CourseInfo, Student } from '@/types'
+import { useCourseStore } from '@/stores/course'
+
 interface Props {
   course: CourseInfo
   currentStudent?: Student
 }
 const props = defineProps<Props>()
+const courseStore = useCourseStore()
 const emit = defineEmits<{
   'enroll-course': [course: CourseInfo]
   'cancel-enrollment': [course: CourseInfo]
+  'card-click': [course: CourseInfo]
 }>()
 // 判断学生是否已选择此课程
 const isEnrolled = computed(() => {
-  return false
+  return courseStore.isEnrolled(props.course.scheduleId)
 })
-const handleEnroll = () => {
+const handleCardClick = () => {
+  // 点击整个卡片触发选课对话框
+  emit('card-click', props.course)
+}
+const handleEnroll = (event: Event) => {
+  event.stopPropagation() // 阻止冒泡到卡片点击
   emit('enroll-course', props.course)
 }
-const handleCancelEnrollment = () => {
+const handleCancelEnrollment = (event: Event) => {
+  event.stopPropagation() // 阻止冒泡到卡片点击
   emit('cancel-enrollment', props.course)
+}
+const getAgeGroupLabel = (ageGroup: number): string => {
+  const groups = [
+    { value: 1, label: '学前班' },
+    { value: 2, label: '小班' },
+    { value: 3, label: '中班' },
+    { value: 4, label: '大班' }
+  ]
+  return groups.find(g => g.value === ageGroup)?.label || `年龄组${ageGroup}`
+}
+const getAgeGroupTagType = (): string => {
+  if (!props.currentStudent) return 'info'
+  // 如果年龄组匹配,显示绿色;否则显示灰色
+  return props.course.ageGroup === props.currentStudent.ageGroup ? 'success' : 'info'
 }
 </script>
 <style lang="scss" scoped>
@@ -137,6 +167,12 @@ const handleCancelEnrollment = () => {
     padding: 2px 6px;
     border-radius: 10px;
     white-space: nowrap;
+    font-weight: 600;
+    transition: all 0.3s;
+    &.count-warning {
+      background: #f56c6c;
+      color: white;
+    }
   }
 }
 .course-details {
@@ -156,6 +192,9 @@ const handleCancelEnrollment = () => {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    &.age-group-info {
+      margin-top: 4px;
     }
   }
 }

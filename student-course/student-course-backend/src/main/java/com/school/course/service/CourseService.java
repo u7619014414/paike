@@ -133,11 +133,15 @@ public class CourseService {
         courseInfo.setClassroomName(schedule.getClassroom().getClassroomName());
         courseInfo.setMaxStudents(schedule.getCourse().getMaxStudents());
         courseInfo.setAgeGroup(schedule.getCourse().getAgeGroup());
-        
+
+        // 获取教室容量
+        Integer classroomCapacity = schedule.getClassroom().getMaxCapacity();
+        courseInfo.setClassroomCapacity(classroomCapacity);
+
         // 获取当前选课人数
         Integer currentStudents = enrollmentMapper.countEnrolledStudents(schedule.getId());
         courseInfo.setCurrentStudents(currentStudents);
-        
+
         // 获取教师信息
         String teacherNames = schedule.getCourse().getTeacherNames();
         if (teacherNames != null) {
@@ -145,37 +149,39 @@ public class CourseService {
         } else {
             courseInfo.setTeacherNames(Arrays.asList("张三", "李四")); // 默认教师
         }
-        
-        // 判断课程状态和是否可选
-        String status = determineStatus(schedule, currentStudents, studentAgeGroup);
+
+        // 判断课程状态和是否可选（使用教室容量判断）
+        String status = determineStatus(schedule, currentStudents, studentAgeGroup, classroomCapacity);
         courseInfo.setStatus(status);
-        courseInfo.setCanEnroll("AVAILABLE".equals(status) && 
+        courseInfo.setCanEnroll("AVAILABLE".equals(status) &&
                               schedule.getCourse().getAgeGroup().equals(studentAgeGroup));
-        
+
         return courseInfo;
     }
     
     /**
      * 确定课程状态
+     * 使用教室容量判断是否满员
      */
-    private String determineStatus(CourseSchedule schedule, Integer currentStudents, Integer studentAgeGroup) {
+    private String determineStatus(CourseSchedule schedule, Integer currentStudents,
+                                   Integer studentAgeGroup, Integer classroomCapacity) {
         Course course = schedule.getCourse();
-        
+
         // 年龄组不匹配，显示灰色
         if (!course.getAgeGroup().equals(studentAgeGroup)) {
             return "DISABLED";
         }
-        
-        // 已满，显示红色
-        if (currentStudents >= course.getMaxStudents()) {
+
+        // 根据教室容量判断是否已满，显示灰色（不可选）
+        if (currentStudents >= classroomCapacity) {
             return "FULL";
         }
-        
+
         // 有人选课但未满，显示黄色
         if (currentStudents > 0) {
             return "AVAILABLE";
         }
-        
+
         // 无人选课，显示白色
         return "EMPTY";
     }

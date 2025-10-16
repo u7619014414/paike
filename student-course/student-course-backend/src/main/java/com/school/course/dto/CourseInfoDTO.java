@@ -12,6 +12,7 @@ public class CourseInfoDTO {
     private List<String> teacherNames;
     private Integer maxStudents;
     private Integer currentStudents;
+    private Integer classroomCapacity; // 教室最大容量
     private String status; // FULL(红色), AVAILABLE(黄色), EMPTY(白色), DISABLED(灰色)
     private Integer ageGroup;
     private Boolean canEnroll;

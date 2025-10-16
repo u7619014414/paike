@@ -42,6 +42,7 @@ export interface CourseInfo {
   teacherNames: string[]
   maxStudents: number
   currentStudents: number
+  classroomCapacity: number  // 教室最大容量
   status: 'FULL' | 'AVAILABLE' | 'EMPTY' | 'DISABLED'
   ageGroup: number
   canEnroll: boolean

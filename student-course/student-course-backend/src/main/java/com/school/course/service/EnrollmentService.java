@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @Transactional
@@ -20,6 +21,8 @@ public class EnrollmentService {
     private final StudentEnrollmentMapper enrollmentMapper;
     private final CourseScheduleMapper scheduleMapper;
     private final StudentMapper studentMapper;
+    private final CourseMapper courseMapper;
+    private final ClassroomMapper classroomMapper;
     
     /**
      * 学生选课
@@ -41,23 +44,38 @@ public class EnrollmentService {
             throw new EntityNotFoundException("课程安排不存在");
         }
 
+        // 加载关联的课程信息
+        Course course = courseMapper.selectById(schedule.getCourseId());
+        if (course == null) {
+            throw new EntityNotFoundException("课程不存在");
+        }
+        schedule.setCourse(course);
+
+        // 加载关联的教室信息
+        Classroom classroom = classroomMapper.selectById(schedule.getClassroomId());
+        if (classroom == null) {
+            throw new EntityNotFoundException("教室不存在");
+        }
+        schedule.setClassroom(classroom);
+
         // 检查年龄组匹配
-        if (!schedule.getCourse().getAgeGroup().equals(student.getAgeGroup())) {
+        if (!course.getAgeGroup().equals(student.getAgeGroup())) {
             throw new BusinessException("学生年龄组不符合课程要求");
         }
 
-        // 检查课程容量
+        // 检查教室容量（使用教室最大容量，而不是课程最大人数）
         Integer currentCount = enrollmentMapper.countEnrolledStudents(courseScheduleId);
-        if (currentCount >= schedule.getCourse().getMaxStudents()) {
-            throw new BusinessException("课程已满，无法选课");
+        Integer classroomCapacity = classroom.getMaxCapacity();
+        if (currentCount >= classroomCapacity) {
+            throw new BusinessException("教室已满，无法选课");
         }
 
-        // 检查学生时间冲突
-        StudentEnrollment conflict = enrollmentMapper.findStudentTimeConflict(
-            studentId, schedule.getScheduleDate(), schedule.getTimeSlotId());
+        // 检查学生时间段冲突（同一个时间段只能选一个课程）
+        StudentEnrollment conflict = enrollmentMapper.findStudentTimeSlotConflict(
+            studentId, schedule.getTimeSlotId());
 
         if (conflict != null) {
-            throw new BusinessException("学生在该时间段已有课程安排");
+            throw new BusinessException("该时间段已有课程安排，一个学生不能同时在多个教室上课");
         }
 
         // 检查是否已经选过该课程
@@ -103,5 +121,12 @@ public class EnrollmentService {
         enrollmentMapper.updateById(enrollment);
 
         log.info("取消选课成功，学生ID：{}，课程安排ID：{}", studentId, courseScheduleId);
+    }
+
+    /**
+     * 获取学生已选课程的scheduleId列表
+     */
+    public List<Long> getStudentEnrolledScheduleIds(Long studentId) {
+        return enrollmentMapper.findEnrolledScheduleIdsByStudent(studentId);
     }
 }
