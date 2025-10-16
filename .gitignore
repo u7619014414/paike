@@ -15,6 +15,11 @@ build/
 *.war
 *.ear
 
+# Exclude specific large build artifacts
+student-course-backend/target/
+student-course/student-course-backend/target/
+teacher-scheduling-system/backend/target/
+
 # IDE
 .idea/
 .vscode/
