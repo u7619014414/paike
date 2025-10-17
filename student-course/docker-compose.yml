@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: student-course-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password123
+      MYSQL_DATABASE: school_system
+      MYSQL_USER: school_user
+      MYSQL_PASSWORD: school_pass123
+      TZ: Asia/Shanghai
+    ports:
+      - "45306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database-schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    networks:
+      - student-course-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis缓存（可选）
+  redis:
+    image: redis:7-alpine
+    container_name: student-course-redis
+    ports:
+      - "45379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - student-course-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # 后端服务
+  student-backend:
+    image: u7619014414/shibx:student-backend-latest
+    container_name: student-course-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: school_user
+      SPRING_DATASOURCE_PASSWORD: school_pass123
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      TZ: Asia/Shanghai
+    ports:
+      - "45081:45081"
+    networks:
+      - student-course-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:45081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # 前端服务
+  student-frontend:
+    image: u7619014414/shibx:student-frontend-latest
+    container_name: student-course-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - student-course-network
+    depends_on:
+      - student-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  student-course-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local

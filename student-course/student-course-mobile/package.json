@@ -1,0 +1,28 @@
+{
+  "name": "student-course-mobile",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3001",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "dayjs": "^1.11.10",
+    "pinia": "^2.1.7",
+    "vant": "^4.8.1",
+    "vue": "^3.3.8",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitejs/plugin-vue": "^4.5.0",
+    "sass-embedded": "^1.93.2",
+    "typescript": "^5.3.2",
+    "unplugin-auto-import": "^0.17.2",
+    "unplugin-vue-components": "^0.25.2",
+    "vite": "^5.0.0",
+    "vue-tsc": "^1.8.25"
+  }
+}
