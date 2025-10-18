@@ -246,11 +246,13 @@ const handleCourseClick = async (course: CourseInfo) => {
 
       await enrollmentApi.enrollCourse(userStore.student.id, course.scheduleId)
       showSuccessToast('选课成功')
-      loadCourses()
+      await loadCourses()
     } catch (error: any) {
-      if (error !== 'cancel') {
-        console.error('选课失败:', error)
+      // 用户取消选课，不做任何处理
+      if (error === 'cancel') {
+        return
       }
+      // 其他错误已经在拦截器中显示了
     }
   }
 }

@@ -70,15 +70,31 @@ public class EnrollmentService {
             throw new BusinessException("教室已满，无法选课");
         }
 
-        // 检查学生时间段冲突（同一个时间段只能选一个课程）
+        // 检查学生时间段冲突（同一天的同一个时间段只能选一个课程）
+        log.info("检查时间冲突 - 学生ID: {}, 要选课程安排ID: {}, TimeSlotId: {}, ScheduleDate: {}",
+                 studentId, courseScheduleId, schedule.getTimeSlotId(), schedule.getScheduleDate());
+
         StudentEnrollment conflict = enrollmentMapper.findStudentTimeSlotConflict(
-            studentId, schedule.getTimeSlotId());
+            studentId, schedule.getTimeSlotId(), schedule.getScheduleDate());
 
         if (conflict != null) {
+            log.error("时间冲突 - 学生ID: {}, 已选课程安排ID: {}, 要选课程安排ID: {}",
+                     studentId, conflict.getCourseScheduleId(), courseScheduleId);
             throw new BusinessException("该时间段已有课程安排，一个学生不能同时在多个教室上课");
         }
 
-        // 检查是否已经选过该课程
+        // 检查是否之前取消过当前课程安排，如果有取消的记录，允许重新激活
+        StudentEnrollment cancelled = enrollmentMapper
+            .findByStudentIdAndCourseScheduleIdAndEnrollmentStatus(studentId, courseScheduleId, 2);
+
+        log.info("检查选课 - 学生ID: {}, 课程ID: {}, 课程名: {}, 课程安排ID: {}, 是否有取消记录: {}",
+                 studentId, course.getId(), course.getCourseName(), courseScheduleId,
+                 cancelled != null ? "是(scheduleId:" + cancelled.getCourseScheduleId() + ")" : "否");
+
+        // 注意：允许学生选择同一课程的不同时间段/教室，只要时间不冲突即可
+        // 时间冲突检查已在前面完成（第74-79行）
+
+        // 检查是否已经选过该课程安排（同一个课程安排不能重复选）
         StudentEnrollment existing = enrollmentMapper
             .findByStudentIdAndCourseScheduleIdAndEnrollmentStatus(studentId, courseScheduleId, 1);
 
@@ -86,14 +102,26 @@ public class EnrollmentService {
             throw new BusinessException("已经选择过该课程");
         }
 
-        // 创建选课记录
-        StudentEnrollment enrollment = new StudentEnrollment();
-        enrollment.setStudentId(studentId);
-        enrollment.setCourseScheduleId(courseScheduleId);
-        enrollment.setEnrollmentStatus(1);
-        enrollment.setEnrollmentDate(LocalDateTime.now());
-
-        enrollmentMapper.insert(enrollment);
+        // 如果之前取消过这个课程安排，重新激活；否则创建新记录
+        StudentEnrollment enrollment;
+        if (cancelled != null) {
+            // 重新激活之前取消的记录
+            log.info("重新激活取消的选课记录 - 学生ID: {}, 课程安排ID: {}, 记录ID: {}",
+                     studentId, courseScheduleId, cancelled.getId());
+            cancelled.setEnrollmentStatus(1);
+            cancelled.setEnrollmentDate(LocalDateTime.now());
+            enrollmentMapper.updateById(cancelled);
+            enrollment = cancelled;
+        } else {
+            // 创建新的选课记录
+            log.info("创建新的选课记录 - 学生ID: {}, 课程安排ID: {}", studentId, courseScheduleId);
+            enrollment = new StudentEnrollment();
+            enrollment.setStudentId(studentId);
+            enrollment.setCourseScheduleId(courseScheduleId);
+            enrollment.setEnrollmentStatus(1);
+            enrollment.setEnrollmentDate(LocalDateTime.now());
+            enrollmentMapper.insert(enrollment);
+        }
 
         log.info("学生选课成功，学生ID：{}，课程安排ID：{}", studentId, courseScheduleId);
 

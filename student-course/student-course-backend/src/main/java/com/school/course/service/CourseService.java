@@ -72,9 +72,12 @@ public class CourseService {
         for (CourseSchedule schedule : schedules) {
 
             TimeSlot timeSlot = Optional.ofNullable(schedule.getTimeSlot()).orElseGet(() -> getScheduleTimeSlot(schedule,timeSlots));
-            String key = timeSlot.getDayOfWeek() + "_" + schedule.getTimeSlotId();
+
+            // 使用课程安排的实际日期（SCHEDULE_DATE）的星期几，而不是 TimeSlot 的 DAY_OF_WEEK
+            int actualDayOfWeek = schedule.getScheduleDate().getDayOfWeek().getValue();
+            String key = actualDayOfWeek + "_" + schedule.getTimeSlotId();
             TimeSlotViewDTO timeSlotView = timeSlotMap.get(key);
-            
+
             if (timeSlotView != null) {
                 Course course = Optional.ofNullable(schedule.getCourse()).orElseGet(() -> getScheduleCourse(schedule,courses));
                 Classroom cr= Optional.ofNullable(schedule.getClassroom()).orElseGet(() -> getScheduleClassroom(schedule,classrooms));
@@ -153,7 +156,8 @@ public class CourseService {
         // 判断课程状态和是否可选（使用教室容量判断）
         String status = determineStatus(schedule, currentStudents, studentAgeGroup, classroomCapacity);
         courseInfo.setStatus(status);
-        courseInfo.setCanEnroll("AVAILABLE".equals(status) &&
+        // EMPTY 和 AVAILABLE 状态都可以选课
+        courseInfo.setCanEnroll(("AVAILABLE".equals(status) || "EMPTY".equals(status)) &&
                               schedule.getCourse().getAgeGroup().equals(studentAgeGroup));
 
         return courseInfo;

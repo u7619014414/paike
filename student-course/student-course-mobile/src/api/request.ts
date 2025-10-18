@@ -63,23 +63,30 @@ class Request {
       },
       (error) => {
         this.hideLoading()
-        if (error.response) {
-          const { status, data } = error.response
-          if (status >= 500) {
-            showToast('服务器错误,请稍后重试')
-          } else if (status === 401) {
-            showToast('登录已过期,请重新登录')
-            localStorage.removeItem('token')
-            localStorage.removeItem('student')
-            setTimeout(() => {
-              window.location.href = '/login'
-            }, 1500)
+
+        // 确保 loading toast 已经关闭后再显示错误
+        setTimeout(() => {
+          if (error.response) {
+            const { status, data } = error.response
+            if (status >= 500) {
+              showToast('服务器错误,请稍后重试')
+            } else if (status === 401) {
+              showToast('登录已过期,请重新登录')
+              localStorage.removeItem('token')
+              localStorage.removeItem('student')
+              setTimeout(() => {
+                window.location.href = '/login'
+              }, 1500)
+            } else {
+              // 尝试从不同的位置获取错误消息
+              const message = data?.message || data?.data?.message || data?.msg || '请求失败'
+              showToast(message)
+            }
           } else {
-            showToast(data?.message || '请求失败')
+            showToast('网络错误,请检查网络连接')
           }
-        } else {
-          showToast('网络错误,请检查网络连接')
-        }
+        }, 100)
+
         return Promise.reject(error)
       }
     )
@@ -111,7 +118,7 @@ class Request {
 }
 
 const request = new Request({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://asdnn.com:45081/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
