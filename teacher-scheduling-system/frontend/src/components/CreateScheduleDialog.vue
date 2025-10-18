@@ -297,7 +297,11 @@ const getTeacherTagType = (teacherId: number) => {
 
 const loadCourses = async () => {
   try {
-    courses.value = await courseApi.getActiveCourses()
+    console.log('开始加载课程列表...')
+    const result = await courseApi.getActiveCourses()
+    console.log('课程API返回结果:', result)
+    courses.value = result
+    console.log('courses.value 已设置为:', courses.value)
   } catch (error) {
     console.error('加载课程列表失败', error)
   }
@@ -305,7 +309,11 @@ const loadCourses = async () => {
 
 const loadClassrooms = async () => {
   try {
-    classrooms.value = await classroomApi.getAllClassrooms()
+    console.log('开始加载教室列表...')
+    const result = await classroomApi.getAllClassrooms()
+    console.log('教室API返回结果:', result)
+    classrooms.value = result
+    console.log('classrooms.value 已设置为:', classrooms.value)
   } catch (error) {
     console.error('加载教室列表失败', error)
   }
@@ -508,6 +516,9 @@ const handleClose = () => {
 // 监听对话框打开
 watch(() => props.visible, async (newVal) => {
   if (newVal) {
+    console.log('对话框打开，开始加载数据...')
+    console.log('传入的 timeSlots:', props.timeSlots)
+
     loadCourses()
     loadClassrooms()
 

@@ -141,8 +141,8 @@
         :time-slots="timeSlots"
         :loading="loading"
         @add-schedule="handleAddScheduleFromGrid"
-        @assign-teachers="handleAssignTeachers"
-        @cancel-schedule="handleCancel"
+        @edit-schedule="handleEditFromGrid"
+        @delete-schedules="handleDeleteFromGrid"
         @schedule-click="handleScheduleClick"
       />
     </el-card>
@@ -266,37 +266,40 @@ const handleAddScheduleFromGrid = (dayOfWeek: number, timeSlot: TimeSlot, date: 
 }
 
 const handleScheduleClick = (schedule: CourseSchedule) => {
-  ElMessage.info(`查看课程详情: ${schedule.courseName}`)
+  // 卡表视图中点击卡片是为了选中，不弹提示
+  // ElMessage.info(`查看课程详情: ${schedule.courseName}`)
 }
 
-const handleAssignTeachers = (schedule: CourseSchedule) => {
-  ElMessage.info(`分配教师功能开发中: ${schedule.courseName}`)
+const handleEditFromGrid = (schedule: CourseSchedule) => {
+  editingSchedule.value = schedule
+  isEditMode.value = true
+  showCreateDialog.value = true
 }
 
-const handleCancel = async (schedule: CourseSchedule) => {
+const handleDeleteFromGrid = async (schedules: CourseSchedule[]) => {
   try {
+    const count = schedules.length
+    const courseName = count === 1 ? schedules[0].courseName : `${count}个排课`
+
     await ElMessageBox.confirm(
-      `确定要取消课程"${schedule.courseName}"的排课吗？`,
-      '取消确认',
+      `确定要删除${courseName}吗？此操作不可恢复。`,
+      '删除确认',
       {
-        confirmButtonText: '确定',
+        confirmButtonText: '确定删除',
         cancelButtonText: '取消',
         type: 'warning'
       }
     )
 
-    await scheduleApi.deleteSchedule(schedule.id)
-    ElMessage.success('取消成功')
+    // 批量删除
+    await Promise.all(schedules.map(schedule => scheduleApi.deleteSchedule(schedule.id)))
 
-    if (viewMode.value === 'list') {
-      loadSchedules()
-    } else {
-      loadAllSchedules()
-    }
+    ElMessage.success(`成功删除${count}个排课`)
+    loadAllSchedules()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('取消失败', error)
-      ElMessage.error('取消失败')
+      console.error('删除失败', error)
+      ElMessage.error('删除失败')
     }
   }
 }
@@ -417,6 +420,7 @@ const handleEscKey = (event: KeyboardEvent) => {
 
 onMounted(() => {
   loadSchedules()
+  loadTimeSlots() // 初始化时就加载时间段数据，供新建对话框使用
   document.addEventListener('keydown', handleEscKey)
 })
 

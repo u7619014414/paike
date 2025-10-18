@@ -54,7 +54,6 @@
             :key="schedule.id"
             class="schedule-card"
             :class="getScheduleStatusClass(schedule.status)"
-            @click.stop="handleScheduleClick(schedule)"
           >
             <div class="schedule-header">
               <span class="course-name">{{ schedule.courseName }}</span>
@@ -76,23 +75,32 @@
                 <span>{{ schedule.scheduleDate }}</span>
               </div>
             </div>
+            <!-- 卡片底部操作图标 -->
             <div class="schedule-actions" @click.stop>
               <el-button
-                v-if="schedule.status === 1"
                 type="primary"
                 size="small"
-                @click="handleAssignTeachers(schedule)"
-              >
-                分配教师
-              </el-button>
+                :icon="Plus"
+                circle
+                title="添加排课"
+                @click="handleAddSchedule(dayOfWeek, timeSlot)"
+              />
               <el-button
-                v-if="schedule.status === 1"
+                type="warning"
+                size="small"
+                :icon="Edit"
+                circle
+                title="修改排课"
+                @click="handleEditScheduleSingle(schedule)"
+              />
+              <el-button
                 type="danger"
                 size="small"
-                @click="handleCancel(schedule)"
-              >
-                取消
-              </el-button>
+                :icon="Delete"
+                circle
+                title="删除排课"
+                @click="handleDeleteSingle(schedule)"
+              />
             </div>
           </div>
 
@@ -112,7 +120,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, ArrowRight, Location, User, Calendar, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Location, User, Calendar, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 
@@ -164,8 +172,8 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   addSchedule: [dayOfWeek: number, timeSlot: TimeSlot, date: string]
-  assignTeachers: [schedule: Schedule]
-  cancelSchedule: [schedule: Schedule]
+  editSchedule: [schedule: Schedule]
+  deleteSchedules: [schedules: Schedule[]]
   scheduleClick: [schedule: Schedule]
 }>()
 
@@ -261,16 +269,13 @@ const handleAddSchedule = (dayOfWeek: number, timeSlot: TimeSlot) => {
   emit('addSchedule', dayOfWeek, timeSlot, date)
 }
 
-const handleAssignTeachers = (schedule: Schedule) => {
-  emit('assignTeachers', schedule)
+// 单个排课的编辑和删除
+const handleEditScheduleSingle = (schedule: Schedule) => {
+  emit('editSchedule', schedule)
 }
 
-const handleCancel = (schedule: Schedule) => {
-  emit('cancelSchedule', schedule)
-}
-
-const handleScheduleClick = (schedule: Schedule) => {
-  emit('scheduleClick', schedule)
+const handleDeleteSingle = (schedule: Schedule) => {
+  emit('deleteSchedules', [schedule])
 }
 
 // 当 schedules 改变时，检查是否需要自动跳转到有数据的周
@@ -468,13 +473,16 @@ watch(() => props.schedules, (newSchedules) => {
 
           .schedule-actions {
             margin-top: 8px;
-            display: flex;
-            gap: 5px;
             padding-top: 8px;
             border-top: 1px solid #e4e7ed;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
 
             .el-button {
-              flex: 1;
+              width: 28px;
+              height: 28px;
+              padding: 0;
             }
           }
         }
@@ -511,5 +519,6 @@ watch(() => props.schedules, (newSchedules) => {
       }
     }
   }
+
 }
 </style>

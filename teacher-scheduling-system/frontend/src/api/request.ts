@@ -19,6 +19,13 @@ class Request {
           text: '加载中...',
           background: 'rgba(0, 0, 0, 0.1)'
         })
+
+        // 添加token到请求头
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
+        }
+
         return config
       },
       (error) => {
@@ -41,10 +48,21 @@ class Request {
       },
       (error) => {
         this.hideLoading()
-        
+
         if (error.response) {
           const { status, data } = error.response
-          if (status >= 500) {
+
+          if (status === 401) {
+            // 未授权，清除token并跳转到登录页
+            localStorage.removeItem('token')
+            localStorage.removeItem('userInfo')
+            sessionStorage.removeItem('token')
+            sessionStorage.removeItem('userInfo')
+
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login'
+            }
+          } else if (status >= 500) {
             ElMessage.error('服务器错误，请稍后重试')
           } else {
             ElMessage.error(data?.message || '请求失败')
@@ -52,7 +70,7 @@ class Request {
         } else {
           ElMessage.error('网络错误，请检查网络连接')
         }
-        
+
         return Promise.reject(error)
       }
     )
