@@ -23,8 +23,7 @@ services:
     container_name: teacher-scheduling-frontend
     ports:
       - "45100:80"
-    networks:
-      - teacher-scheduling-network
+   
     depends_on:
       - teacher-backend
     healthcheck:
