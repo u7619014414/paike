@@ -1,0 +1,36 @@
+services:
+  
+  # 教师系统后端服务
+  teacher-backend:
+    image: asdnn.com:45443/yl/teacher-scheduling-backend:1.0.0
+    container_name: teacher-scheduling-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://asdnn.com:45306/school_system??useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: school_user
+      SPRING_DATASOURCE_PASSWORD: school_pass123
+      SPRING_REDIS_DATA_HOST: redis
+      SPRING_REDIS_DATA_PORT: 6379
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      TZ: Asia/Shanghai
+    ports:
+      - "45082:45082"  
+   
+
+  # 教师系统前端服务
+  teacher-frontend:
+    image: asdnn.com:45443/yl/teacher-scheduling-frontend:1.0.0
+    container_name: teacher-scheduling-frontend
+    ports:
+      - "45100:80"
+    networks:
+      - teacher-scheduling-network
+    depends_on:
+      - teacher-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+

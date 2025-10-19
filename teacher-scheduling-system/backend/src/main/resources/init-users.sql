@@ -1,0 +1,27 @@
+-- 初始化系统用户数据
+-- 密码加密方式: SHA-256 + Base64
+-- admin123 -> JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=
+-- teacher123 -> zeOD7ujuekQArfehX3FvF5ouuXZGs34InrjW0E5mNBY=
+-- user123 -> 5gbjiw2MGbJM8O44CBgxYup81j/3kS27IrXoAyhrREY=
+
+-- 删除现有测试数据（可选）
+DELETE FROM SYS_USERS WHERE USERNAME IN ('admin', 'teacher1', 'teacher2', 'student1');
+
+-- 插入管理员账号
+INSERT INTO SYS_USERS (USERNAME, PASSWORD, USER_TYPE, RELATED_ID, IS_ACTIVE, CREATED_AT, UPDATED_AT)
+VALUES ('admin', 'JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=', 1, NULL, TRUE, NOW(), NOW());
+
+-- 插入教师账号（关联到教师表）
+-- 假设教师表中已有ID为1和2的教师
+INSERT INTO SYS_USERS (USERNAME, PASSWORD, USER_TYPE, RELATED_ID, IS_ACTIVE, CREATED_AT, UPDATED_AT)
+VALUES ('teacher1', 'zeOD7ujuekQArfehX3FvF5ouuXZGs34InrjW0E5mNBY=', 2, 1, TRUE, NOW(), NOW());
+
+INSERT INTO SYS_USERS (USERNAME, PASSWORD, USER_TYPE, RELATED_ID, IS_ACTIVE, CREATED_AT, UPDATED_AT)
+VALUES ('teacher2', 'zeOD7ujuekQArfehX3FvF5ouuXZGs34InrjW0E5mNBY=', 2, 2, TRUE, NOW(), NOW());
+
+-- 插入学生账号（用于测试）
+INSERT INTO SYS_USERS (USERNAME, PASSWORD, USER_TYPE, RELATED_ID, IS_ACTIVE, CREATED_AT, UPDATED_AT)
+VALUES ('student1', '5gbjiw2MGbJM8O44CBgxYup81j/3kS27IrXoAyhrREY=', 3, NULL, TRUE, NOW(), NOW());
+
+-- 查询插入的用户
+SELECT * FROM SYS_USERS WHERE USERNAME IN ('admin', 'teacher1', 'teacher2', 'student1');
