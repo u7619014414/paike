@@ -40,9 +40,21 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'element-plus': ['element-plus'],
-          'vue-vendor': ['vue', 'vue-router', 'pinia']
+        manualChunks(id) {
+          // 将 node_modules 中的包分组
+          if (id.includes('node_modules')) {
+            if (id.includes('element-plus')) {
+              return 'element-plus'
+            }
+            if (id.includes('@element-plus')) {
+              return 'element-plus-icons'
+            }
+            if (id.includes('vue') || id.includes('pinia') || id.includes('@vue')) {
+              return 'vue-vendor'
+            }
+            // 其他第三方库
+            return 'vendor'
+          }
         }
       }
     }
