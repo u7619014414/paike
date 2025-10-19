@@ -15,7 +15,7 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:mysql://asdnn.com:45306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://asdnn.com:3306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: school_user
     password: school_pass123
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -26,19 +26,6 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
       pool-name: TeacherSchedulingHikariPool
-
-
-  redis:
-    data:
-      host: localhost
-      port: 45379
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-wait: -1ms
-          max-idle: 8
-          min-idle: 0
 
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss

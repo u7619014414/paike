@@ -5,12 +5,11 @@ services:
     image: asdnn.com:45443/yl/teacher-scheduling-backend:1.0.0
     container_name: teacher-scheduling-backend
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:mysql://asdnn.com:45306/school_system??useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://asdnn.com:3306/school_system??useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: school_user
       SPRING_DATASOURCE_PASSWORD: school_pass123
-      SPRING_REDIS_DATA_HOST: redis
-      SPRING_REDIS_DATA_PORT: 6379
+      
       JAVA_OPTS: "-Xms256m -Xmx512m"
       TZ: Asia/Shanghai
     ports:
