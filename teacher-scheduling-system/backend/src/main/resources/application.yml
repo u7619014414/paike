@@ -10,9 +10,15 @@ server:
 spring:
   application:
     name: teacher-scheduling-system
-  
+
   profiles:
     active: dev
+
+  # 禁用Redis自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
 
   datasource:
     url: jdbc:mysql://asdnn.com:3306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true

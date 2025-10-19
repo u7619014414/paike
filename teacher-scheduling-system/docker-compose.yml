@@ -9,7 +9,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://asdnn.com:45306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: school_user
       SPRING_DATASOURCE_PASSWORD: school_pass123
-      
+      # 禁用Redis自动配置
+      SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
       JAVA_OPTS: "-Xms256m -Xmx512m"
       TZ: Asia/Shanghai
     ports:
