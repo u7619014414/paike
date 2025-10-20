@@ -1,0 +1,43 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # 禁用Redis自动配置（与主配置保持一致）
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+
+  datasource:
+    url: jdbc:mysql://asdnn.com:3306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: school_user
+    password: school_pass123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 30
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: TeacherSchedulingHikariPool
+
+# MyBatis Plus 生产环境配置（关闭SQL日志以提高性能）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nolog.NoLoggingImpl
+    map-underscore-to-camel-case: true
+
+# 生产环境日志配置
+logging:
+  level:
+    root: INFO
+    com.yl.paike.teacher: INFO
+    org.springframework.web: INFO
+    com.baomidou.mybatisplus: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/teacher-scheduling.log
+    max-size: 50MB
+    max-history: 30
