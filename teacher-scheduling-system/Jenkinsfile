@@ -31,11 +31,14 @@ pipeline {
             steps {
                 echo "==== [1] 推送本地代码到 GitHub ===="
                 dir("${LOCAL_CODE_DIR}") {
-                    bat """
-                        git add .
-                        git commit -m "Jenkins Build #${env.BUILD_NUMBER} - Auto commit" || echo "No changes to commit"
-                        git push origin ${GIT_BRANCH}
-                    """
+                    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                        bat """
+                            git add .
+                            git commit -m "Jenkins Build #${env.BUILD_NUMBER} - Auto commit" || echo "No changes to commit"
+                            git remote set-url origin https://u7619014414:%GITHUB_TOKEN%@github.com/u7619014414/paike.git
+                            git push origin ${GIT_BRANCH}
+                        """
+                    }
                 }
             }
         }
