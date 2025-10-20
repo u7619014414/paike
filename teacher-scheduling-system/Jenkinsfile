@@ -46,27 +46,65 @@ pipeline {
         stage('2️⃣ 构建后端') {
             steps {
                 echo "==== [2] Maven 构建 + Docker 镜像 ===="
-                dir("${LOCAL_CODE_DIR}\\teacher-scheduling-system\\backend") {
-                    bat """
-                        mvn clean package -DskipTests
-                        docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG} .
-                        docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:latest
-                    """
-                }
+                bat """
+                    cd /d "${LOCAL_CODE_DIR}\\teacher-scheduling-system\\backend"
+                    echo 当前目录:
+                    cd
+                    echo.
+                    echo 开始 Maven 构建...
+                    call mvn clean package -DskipTests
+                    if errorlevel 1 (
+                        echo Maven 构建失败！
+                        exit /b 1
+                    )
+                    echo.
+                    echo Maven 构建成功，开始构建 Docker 镜像...
+                    docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG} .
+                    if errorlevel 1 (
+                        echo Docker 镜像构建失败！
+                        exit /b 1
+                    )
+                    docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:latest
+                    echo.
+                    echo 验证镜像是否存在:
+                    docker images | findstr teacher-scheduling-backend
+                """
             }
         }
 
         stage('3️⃣ 构建前端') {
             steps {
                 echo "==== [3] npm 构建 + Docker 镜像 ===="
-                dir("${LOCAL_CODE_DIR}\\teacher-scheduling-system\\frontend") {
-                    bat """
-                        call npm install
-                        call npm run build
-                        docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG} .
-                        docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:latest
-                    """
-                }
+                bat """
+                    cd /d "${LOCAL_CODE_DIR}\\teacher-scheduling-system\\frontend"
+                    echo 当前目录:
+                    cd
+                    echo.
+                    echo 开始 npm 安装依赖...
+                    call npm install
+                    if errorlevel 1 (
+                        echo npm install 失败！
+                        exit /b 1
+                    )
+                    echo.
+                    echo 开始构建前端...
+                    call npm run build
+                    if errorlevel 1 (
+                        echo npm build 失败！
+                        exit /b 1
+                    )
+                    echo.
+                    echo 开始构建 Docker 镜像...
+                    docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG} .
+                    if errorlevel 1 (
+                        echo Docker 镜像构建失败！
+                        exit /b 1
+                    )
+                    docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:latest
+                    echo.
+                    echo 验证镜像是否存在:
+                    docker images | findstr teacher-scheduling-frontend
+                """
             }
         }
 
@@ -74,10 +112,18 @@ pipeline {
             steps {
                 echo "==== [4] 推送 Docker 镜像到 Harbor ===="
                 bat """
+                    echo 检查本地镜像:
+                    docker images | findstr teacher-scheduling
+                    echo.
+                    echo 推送后端镜像...
                     docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG}
                     docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:latest
+                    echo.
+                    echo 推送前端镜像...
                     docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG}
                     docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:latest
+                    echo.
+                    echo ✅ 所有镜像推送完成
                 """
             }
         }
