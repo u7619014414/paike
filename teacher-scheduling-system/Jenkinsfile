@@ -58,11 +58,11 @@ pipeline {
 
         stage('3️⃣ 构建前端') {
             steps {
-                echo "==== [3] pnpm 构建 + Docker 镜像 ===="
+                echo "==== [3] npm 构建 + Docker 镜像 ===="
                 dir("${LOCAL_CODE_DIR}\\teacher-scheduling-system\\frontend") {
                     bat """
-                        call pnpm install
-                        call pnpm build
+                        call npm install
+                        call npm run build
                         docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG} .
                         docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:latest
                     """

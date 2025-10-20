@@ -4,20 +4,17 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-# 安装pnpm
-RUN npm install -g pnpm
-
-# 复制package.json和pnpm-lock.yaml
-COPY package.json pnpm-lock.yaml* ./
+# 复制package.json
+COPY package.json package-lock.json* ./
 
 # 安装依赖
-RUN pnpm install --frozen-lockfile
+RUN npm install
 
 # 复制源代码
 COPY . .
 
-# 构建生产版本（跳过类型检查，直接构建）
-RUN npx vite build
+# 构建生产版本
+RUN npm run build
 
 # 阶段2: 运行阶段
 FROM nginx:1.26.2
