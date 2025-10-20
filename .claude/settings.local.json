@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(cmd /c \"taskkill /F /PID 3848\")",
+      "Bash(start /B java -jar targetstudent-course-backend-1.0.0.jar)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
