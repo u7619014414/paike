@@ -10,7 +10,7 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
 
   datasource:
-    url: jdbc:mysql://asdnn.com:3306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://asdnn.com:45306/school_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: school_user
     password: school_pass123
     driver-class-name: com.mysql.cj.jdbc.Driver
