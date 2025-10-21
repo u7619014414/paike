@@ -102,9 +102,12 @@ pipeline {
                 echo "==== [4] 推送 Docker 镜像到 Harbor ===="
                 script {
                     withCredentials([usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
-                        // 登录 Harbor
+                        // 登录 Harbor（禁用代理）
                         bat """
                             echo 登录 Harbor...
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
                             docker login ${HARBOR_REGISTRY} -u %HARBOR_USER% -p %HARBOR_PASS%
                         """
 
@@ -114,28 +117,40 @@ pipeline {
                             docker images | findstr teacher-scheduling
                         """
 
-                        // 推送后端镜像 - 带重试
+                        // 推送后端镜像 - 带重试（禁用代理）
                         retry(3) {
                             bat """
+                                set HTTP_PROXY=
+                                set HTTPS_PROXY=
+                                set NO_PROXY=asdnn.com,localhost,127.0.0.1
                                 echo 推送后端镜像 (版本 ${IMAGE_TAG})...
                                 docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG}
                             """
                         }
 
                         bat """
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
                             echo 推送后端镜像 (latest)...
                             docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:latest
                         """
 
-                        // 推送前端镜像 - 带重试
+                        // 推送前端镜像 - 带重试（禁用代理）
                         retry(3) {
                             bat """
+                                set HTTP_PROXY=
+                                set HTTPS_PROXY=
+                                set NO_PROXY=asdnn.com,localhost,127.0.0.1
                                 echo 推送前端镜像 (版本 ${IMAGE_TAG})...
                                 docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG}
                             """
                         }
 
                         bat """
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
                             echo 推送前端镜像 (latest)...
                             docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:latest
                             echo.
