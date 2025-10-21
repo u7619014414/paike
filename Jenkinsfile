@@ -36,8 +36,10 @@ pipeline {
     }
 
     environment {
-        GIT_REPO = "https://github.com/u7619014414/paike.git"
+        // GitLab 配置
+        GIT_REPO = "http://asdnn.com:45001/yl/yf/paike.git"
         GIT_BRANCH = "${env.BRANCH_NAME ?: 'develop'}"
+        GIT_CREDS_ID = 'gitlab-yl-token' // Jenkins 中创建的 GitLab 凭据 ID
 
         // 本地代码路径
         LOCAL_CODE_DIR = "D:\\1vueproj\\paike"
@@ -87,13 +89,13 @@ pipeline {
 
         stage('1️⃣ 代码同步') {
             steps {
-                echo "==== [1] 推送本地代码到 GitHub ===="
+                echo "==== [1] 推送本地代码到 GitLab ===="
                 dir("${LOCAL_CODE_DIR}") {
-                    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                    withCredentials([string(credentialsId: "${GIT_CREDS_ID}", variable: 'GITLAB_TOKEN')]) {
                         bat """
                             git add .
                             git commit -m "Jenkins Build #${env.BUILD_NUMBER} [${GIT_BRANCH}] - Auto commit" || echo "No changes to commit"
-                            git remote set-url origin https://u7619014414:%GITHUB_TOKEN%@github.com/u7619014414/paike.git
+                            git remote set-url origin http://oauth2:%GITLAB_TOKEN%@asdnn.com:45001/yl/yf/paike.git
                             git push origin ${GIT_BRANCH}
                         """
                     }
