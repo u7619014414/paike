@@ -1,0 +1,433 @@
+pipeline {
+    agent any
+
+    environment {
+        GIT_REPO = "https://github.com/u7619014414/paike.git"
+        GIT_BRANCH = "develop"
+
+        // 本地代码路径
+        LOCAL_CODE_DIR = "D:\\1vueproj\\paike"
+
+        // Harbor 镜像仓库配置
+        HARBOR_REGISTRY = "asdnn.com:45443"
+        HARBOR_PROJECT = "yl"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+
+        // 服务器部署路径
+        SERVER_DEPLOY_DIR = "/data/1vueproj"
+        SERVER_COMPOSE_DIR = "/data/1vueproj/paike/student-course"
+
+        // SSH 配置
+        SSH_KEY = "D:\\1code\\powershell\\jenkins_id_rsa"
+        SSH_PORT = "45000"
+        SSH_HOST = "asdnn.com"
+        SSH_USER = "root"
+        SSH_BIN = "D:\\soft\\Git\\usr\\bin\\ssh.exe"
+        SCP_BIN = "D:\\soft\\Git\\usr\\bin\\scp.exe"
+    }
+
+    stages {
+        stage('1️⃣ 推送本地代码到 GitHub') {
+            steps {
+                echo "==== [1] 推送本地代码到 GitHub ===="
+                dir("${LOCAL_CODE_DIR}") {
+                    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                        bat """
+                            git add .
+                            git commit -m "Jenkins Build #${env.BUILD_NUMBER} - Student Course Auto commit" || echo "No changes to commit"
+                            git remote set-url origin https://u7619014414:%GITHUB_TOKEN%@github.com/u7619014414/paike.git
+                            git push origin ${GIT_BRANCH}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('2️⃣ 构建后端') {
+            steps {
+                echo "==== [2] Maven 构建 + Docker 镜像 ===="
+                bat """
+                    cd /d "${LOCAL_CODE_DIR}\\student-course\\student-course-backend"
+                    echo 当前目录:
+                    cd
+                    echo.
+                    echo 开始 Maven 构建...
+                    call mvn clean package -DskipTests
+                    if errorlevel 1 (
+                        echo Maven 构建失败！
+                        exit /b 1
+                    )
+                    echo.
+                    echo Maven 构建成功，开始构建 Docker 镜像...
+                    docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:${IMAGE_TAG} .
+                    if errorlevel 1 (
+                        echo Docker 镜像构建失败！
+                        exit /b 1
+                    )
+                    docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:latest
+                    echo.
+                    echo 验证镜像是否存在:
+                    docker images | findstr student-course-backend
+                """
+            }
+        }
+
+        stage('3️⃣ 构建前端') {
+            steps {
+                echo "==== [3] 前端构建（直接使用 Docker） ===="
+                bat """
+                    cd /d "${LOCAL_CODE_DIR}\\student-course\\student-course-frontend"
+                    echo 当前目录:
+                    cd
+                    echo.
+                    echo 跳过本地 pnpm 构建，直接使用 Docker 多阶段构建...
+                    echo 这样可以避免 Jenkins 服务器上的 pnpm 环境问题
+                    echo.
+                    echo 开始构建 Docker 镜像（包含 pnpm install 和 build）...
+                    docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:${IMAGE_TAG} .
+                    if errorlevel 1 (
+                        echo Docker 镜像构建失败！
+                        exit /b 1
+                    )
+                    docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:latest
+                    echo.
+                    echo 验证镜像是否存在:
+                    docker images | findstr student-course-frontend
+                """
+            }
+        }
+
+        stage('4️⃣ 构建移动端') {
+            steps {
+                echo "==== [4] 移动端前端构建（直接使用 Docker） ===="
+                bat """
+                    cd /d "${LOCAL_CODE_DIR}\\student-course\\student-course-mobile"
+                    echo 当前目录:
+                    cd
+                    echo.
+                    echo 跳过本地 pnpm 构建，直接使用 Docker 多阶段构建...
+                    echo 这样可以避免 Jenkins 服务器上的 pnpm 环境问题
+                    echo.
+                    echo 开始构建 Docker 镜像（包含 pnpm install 和 build）...
+                    docker build -t ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:${IMAGE_TAG} .
+                    if errorlevel 1 (
+                        echo Docker 镜像构建失败！
+                        exit /b 1
+                    )
+                    docker tag ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:${IMAGE_TAG} ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:latest
+                    echo.
+                    echo 验证镜像是否存在:
+                    docker images | findstr student-course-mobile
+                """
+            }
+        }
+
+        stage('5️⃣ 推送镜像到 Harbor') {
+            steps {
+                echo "==== [5] 推送 Docker 镜像到 Harbor ===="
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
+                        // 登录 Harbor（禁用代理）
+                        bat """
+                            echo 登录 Harbor...
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                            docker login ${HARBOR_REGISTRY} -u %HARBOR_USER% -p %HARBOR_PASS%
+                        """
+
+                        // 检查镜像
+                        bat """
+                            echo 检查本地镜像:
+                            docker images | findstr student-course
+                        """
+
+                        // 推送后端镜像 - 带重试（禁用代理）
+                        retry(3) {
+                            bat """
+                                set HTTP_PROXY=
+                                set HTTPS_PROXY=
+                                set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                                echo 推送后端镜像 (版本 ${IMAGE_TAG})...
+                                docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:${IMAGE_TAG}
+                            """
+                        }
+
+                        bat """
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                            echo 推送后端镜像 (latest)...
+                            docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:latest
+                        """
+
+                        // 推送前端镜像 - 带重试（禁用代理）
+                        retry(3) {
+                            bat """
+                                set HTTP_PROXY=
+                                set HTTPS_PROXY=
+                                set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                                echo 推送前端镜像 (版本 ${IMAGE_TAG})...
+                                docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:${IMAGE_TAG}
+                            """
+                        }
+
+                        bat """
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                            echo 推送前端镜像 (latest)...
+                            docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:latest
+                        """
+
+                        // 推送移动端镜像 - 带重试（禁用代理）
+                        retry(3) {
+                            bat """
+                                set HTTP_PROXY=
+                                set HTTPS_PROXY=
+                                set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                                echo 推送移动端镜像 (版本 ${IMAGE_TAG})...
+                                docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:${IMAGE_TAG}
+                            """
+                        }
+
+                        bat """
+                            set HTTP_PROXY=
+                            set HTTPS_PROXY=
+                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                            echo 推送移动端镜像 (latest)...
+                            docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:latest
+                            echo.
+                            echo ✅ 所有镜像推送完成
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('6️⃣ 生成 docker-compose.override.yml') {
+            steps {
+                echo "==== [6] 生成镜像版本覆盖配置 ===="
+                script {
+                    writeFile file: 'docker-compose.override.yml', text: """services:
+  student-backend:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:${IMAGE_TAG}
+    networks:
+      - student-course-network
+
+  student-frontend:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:${IMAGE_TAG}
+    networks:
+      - student-course-network
+
+  student-mobile:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:${IMAGE_TAG}
+    networks:
+      - student-course-network
+
+networks:
+  student-course-network:
+    driver: bridge
+"""
+                }
+            }
+        }
+
+        stage('7️⃣ 服务器部署') {
+            steps {
+                echo "==== [7] SSH 登录服务器并部署 ===="
+                script {
+                    // 上传 override 文件
+                    bat """
+                        "${SCP_BIN}" -i "${SSH_KEY}" -P ${SSH_PORT} -o StrictHostKeyChecking=no docker-compose.override.yml ${SSH_USER}@${SSH_HOST}:/tmp/student-docker-compose.override.yml
+                    """
+
+                    // 生成部署脚本
+                    writeFile file: 'deploy.sh', text: """#!/bin/bash
+set -e
+
+echo "=========================================="
+echo "学生选课系统部署"
+echo "构建号: ${IMAGE_TAG}"
+echo "=========================================="
+
+# 进入部署目录
+cd ${SERVER_DEPLOY_DIR}
+
+# 删除旧代码
+echo "🗑️  删除旧代码..."
+rm -rf paike
+
+# 克隆最新代码
+echo "📥 克隆最新代码..."
+git clone -b ${GIT_BRANCH} ${GIT_REPO}
+
+# 进入 docker-compose 目录
+cd ${SERVER_COMPOSE_DIR}
+
+# 复制 override 文件
+echo "📋 应用镜像版本配置..."
+cp /tmp/student-docker-compose.override.yml ./docker-compose.override.yml
+
+# 显示当前配置
+echo "📄 docker-compose.yml 配置："
+cat docker-compose.yml | head -30
+
+echo ""
+echo "📄 docker-compose.override.yml 配置："
+cat docker-compose.override.yml
+
+# 停止并删除旧容器（包括 volumes）
+echo "⏹️  停止旧容器..."
+docker compose down -v
+
+# 拉取最新镜像
+echo "📥 拉取最新镜像..."
+docker compose pull
+
+# 启动新容器
+echo "🚀 启动新容器..."
+docker compose up -d
+
+# 等待容器启动
+echo "⏳ 等待容器启动（30秒）..."
+sleep 30
+
+# 检查容器状态
+echo ""
+echo "=========================================="
+echo "📊 容器状态："
+echo "=========================================="
+docker compose ps
+
+# 检查后端日志
+echo ""
+echo "=========================================="
+echo "📜 后端日志（最后30行）："
+echo "=========================================="
+docker compose logs --tail=30 student-backend
+
+# 检查前端日志
+echo ""
+echo "=========================================="
+echo "📜 前端日志（最后15行）："
+echo "=========================================="
+docker compose logs --tail=15 student-frontend
+
+# 检查移动端日志
+echo ""
+echo "=========================================="
+echo "📜 移动端日志（最后15行）："
+echo "=========================================="
+docker compose logs --tail=15 student-mobile
+
+# 检查MySQL日志
+echo ""
+echo "=========================================="
+echo "📜 MySQL日志（最后15行）："
+echo "=========================================="
+docker compose logs --tail=15 mysql
+
+# 检查后端健康
+echo ""
+echo "=========================================="
+echo "🏥 健康检查"
+echo "=========================================="
+echo "检查后端健康状态..."
+for i in {1..30}; do
+    if curl -sf http://localhost:45081/actuator/health > /dev/null 2>&1; then
+        echo "✅ 后端服务健康"
+        curl -s http://localhost:45081/actuator/health | head -5
+        break
+    fi
+    if [ \$i -eq 30 ]; then
+        echo "❌ 后端健康检查超时"
+        echo "查看详细日志："
+        docker compose logs student-backend | tail -50
+    else
+        echo "等待后端启动... (\$i/30)"
+        sleep 2
+    fi
+done
+
+echo ""
+echo "检查前端健康状态..."
+if curl -sf http://localhost:45083/health > /dev/null 2>&1; then
+    echo "✅ 前端服务健康"
+else
+    echo "⚠️  前端健康检查失败（可能正常，取决于健康检查端点配置）"
+fi
+
+echo ""
+echo "检查移动端健康状态..."
+if curl -sf http://localhost:45084/health > /dev/null 2>&1; then
+    echo "✅ 移动端服务健康"
+else
+    echo "⚠️  移动端健康检查失败（可能正常，取决于健康检查端点配置）"
+fi
+
+# 清理未使用的镜像
+echo ""
+echo "🧹 清理未使用的镜像..."
+docker image prune -f
+
+echo ""
+echo "=========================================="
+echo "✅ 部署完成！"
+echo "=========================================="
+echo "PC前端访问: http://${SSH_HOST}:45083"
+echo "移动端访问: http://${SSH_HOST}:45084"
+echo "后端 API: http://${SSH_HOST}:45081/api"
+echo "MySQL: ${SSH_HOST}:45306"
+echo "Redis: ${SSH_HOST}:45379"
+echo "镜像标签: ${IMAGE_TAG}"
+echo "=========================================="
+"""
+
+                    // 上传并执行部署脚本
+                    bat """
+                        "${SCP_BIN}" -i "${SSH_KEY}" -P ${SSH_PORT} -o StrictHostKeyChecking=no deploy.sh ${SSH_USER}@${SSH_HOST}:/tmp/student-deploy.sh
+                        "${SSH_BIN}" -i "${SSH_KEY}" -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "chmod +x /tmp/student-deploy.sh && bash /tmp/student-deploy.sh"
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo """
+========================================
+✅ 学生选课系统部署成功！
+========================================
+构建号: ${env.BUILD_NUMBER}
+镜像标签: ${IMAGE_TAG}
+PC前端地址: http://${SSH_HOST}:45083
+移动端地址: http://${SSH_HOST}:45084
+后端地址: http://${SSH_HOST}:45081/api
+MySQL: ${SSH_HOST}:45306
+Redis: ${SSH_HOST}:45379
+========================================
+"""
+        }
+
+        failure {
+            echo """
+========================================
+❌ 部署失败！
+========================================
+请查看 Jenkins 控制台日志
+或 SSH 到服务器查看：
+  ssh -i ${SSH_KEY} -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}
+  cd ${SERVER_COMPOSE_DIR}
+  docker compose logs
+========================================
+"""
+        }
+
+        always {
+            echo "==== 保留本地镜像以加速下次构建 ===="
+            echo "本地镜像保留，不做清理"
+        }
+    }
+}

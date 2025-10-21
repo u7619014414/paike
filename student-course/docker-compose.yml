@@ -76,7 +76,24 @@ services:
     image: u7619014414/shibx:student-frontend-latest
     container_name: student-course-frontend
     ports:
-      - "3000:80"
+      - "45083:80"
+    networks:
+      - student-course-network
+    depends_on:
+      - student-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # 移动端前端服务
+  student-mobile:
+    image: u7619014414/shibx:student-mobile-latest
+    container_name: student-course-mobile
+    ports:
+      - "45084:80"
     networks:
       - student-course-network
     depends_on:
