@@ -1,6 +1,6 @@
 # 教室时间段管理系统 - Docker 多阶段构建
 # 第一阶段：构建阶段
-FROM node:18-alpine AS builder
+FROM nginx:1.25-alpine
 
 # 设置工作目录
 WORKDIR /app
@@ -21,7 +21,7 @@ COPY . .
 RUN pnpm build
 
 # 第二阶段：生产阶段
-FROM nginx:alpine
+FROM nginx:1.25-alpine
 
 # 复制构建产物到 nginx
 COPY --from=builder /app/dist /usr/share/nginx/html

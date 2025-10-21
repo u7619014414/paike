@@ -1,6 +1,6 @@
 # 使用多阶段构建
 # 阶段1: 构建阶段
-FROM node:20 AS builder
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # 阶段2: 运行阶段
-FROM nginx:1.26.2
+FROM nginx:1.25-alpine
 
 # 复制nginx配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf
