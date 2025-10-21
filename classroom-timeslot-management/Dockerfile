@@ -1,6 +1,6 @@
 # 教室时间段管理系统 - Docker 多阶段构建
 # 第一阶段：构建阶段
-FROM nginx:1.25-alpine
+FROM node:18-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
