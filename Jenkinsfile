@@ -265,38 +265,54 @@ pipeline {
                         // 根据构建范围推送镜像
                         if (params.BUILD_SCOPE == 'ALL' || params.BUILD_SCOPE == 'STUDENT_COURSE') {
                             echo "📤 推送学生选课系统镜像..."
-                            retry(3) {
-                                bat """
-                                    set HTTP_PROXY=
-                                    set HTTPS_PROXY=
-                                    set NO_PROXY=asdnn.com,localhost,127.0.0.1
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:${IMAGE_TAG}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:latest
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-backend:${GIT_BRANCH}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:${IMAGE_TAG}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:latest
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-frontend:${GIT_BRANCH}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:${IMAGE_TAG}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:latest
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/student-course-mobile:${GIT_BRANCH}
-                                """
+
+                            def images = [
+                                "student-course-backend:${IMAGE_TAG}",
+                                "student-course-backend:latest",
+                                "student-course-backend:${GIT_BRANCH}",
+                                "student-course-frontend:${IMAGE_TAG}",
+                                "student-course-frontend:latest",
+                                "student-course-frontend:${GIT_BRANCH}",
+                                "student-course-mobile:${IMAGE_TAG}",
+                                "student-course-mobile:latest",
+                                "student-course-mobile:${GIT_BRANCH}"
+                            ]
+
+                            images.each { image ->
+                                retry(3) {
+                                    bat """
+                                        set HTTP_PROXY=
+                                        set HTTPS_PROXY=
+                                        set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                                        echo 📤 推送 ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${image}
+                                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${image} || exit /b 1
+                                    """
+                                }
                             }
                         }
 
                         if (params.BUILD_SCOPE == 'ALL' || params.BUILD_SCOPE == 'TEACHER_SYSTEM') {
                             echo "📤 推送教师排课系统镜像..."
-                            retry(3) {
-                                bat """
-                                    set HTTP_PROXY=
-                                    set HTTPS_PROXY=
-                                    set NO_PROXY=asdnn.com,localhost,127.0.0.1
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${IMAGE_TAG}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:latest
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-backend:${GIT_BRANCH}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${IMAGE_TAG}
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:latest
-                                    docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/teacher-scheduling-frontend:${GIT_BRANCH}
-                                """
+
+                            def images = [
+                                "teacher-scheduling-backend:${IMAGE_TAG}",
+                                "teacher-scheduling-backend:latest",
+                                "teacher-scheduling-backend:${GIT_BRANCH}",
+                                "teacher-scheduling-frontend:${IMAGE_TAG}",
+                                "teacher-scheduling-frontend:latest",
+                                "teacher-scheduling-frontend:${GIT_BRANCH}"
+                            ]
+
+                            images.each { image ->
+                                retry(3) {
+                                    bat """
+                                        set HTTP_PROXY=
+                                        set HTTPS_PROXY=
+                                        set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                                        echo 📤 推送 ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${image}
+                                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${image} || exit /b 1
+                                    """
+                                }
                             }
                         }
 
@@ -308,15 +324,23 @@ pipeline {
 
                             if (hasClassroomImage) {
                                 echo "📤 推送教室管理系统镜像..."
-                                retry(3) {
-                                    bat """
-                                        set HTTP_PROXY=
-                                        set HTTPS_PROXY=
-                                        set NO_PROXY=asdnn.com,localhost,127.0.0.1
-                                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/classroom-management:${IMAGE_TAG}
-                                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/classroom-management:latest
-                                        docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/classroom-management:${GIT_BRANCH}
-                                    """
+
+                                def images = [
+                                    "classroom-management:${IMAGE_TAG}",
+                                    "classroom-management:latest",
+                                    "classroom-management:${GIT_BRANCH}"
+                                ]
+
+                                images.each { image ->
+                                    retry(3) {
+                                        bat """
+                                            set HTTP_PROXY=
+                                            set HTTPS_PROXY=
+                                            set NO_PROXY=asdnn.com,localhost,127.0.0.1
+                                            echo 📤 推送 ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${image}
+                                            docker push ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${image} || exit /b 1
+                                        """
+                                    }
                                 }
                             } else {
                                 echo "⚠️  教室管理系统镜像不存在，跳过推送"
@@ -354,9 +378,33 @@ cd ${SERVER_DEPLOY_DIR}
 echo "🗑️  删除旧代码..."
 rm -rf paike
 
-# 克隆最新代码
+# 克隆最新代码（带重试和优化配置）
 echo "📥 克隆最新代码..."
-git clone -b ${GIT_BRANCH} ${GIT_REPO}
+export GIT_HTTP_MAX_REQUEST_BUFFER=100M
+export GIT_HTTP_POST_BUFFER=100M
+git config --global http.postBuffer 524288000
+git config --global http.lowSpeedLimit 0
+git config --global http.lowSpeedTime 999999
+
+# 尝试克隆，最多重试 3 次
+CLONE_SUCCESS=false
+for i in 1 2 3; do
+    echo "📥 克隆尝试 \$i/3..."
+    if git clone --depth 1 -b ${GIT_BRANCH} ${GIT_REPO}; then
+        CLONE_SUCCESS=true
+        echo "✅ 克隆成功"
+        break
+    else
+        echo "⚠️  克隆失败，等待 5 秒后重试..."
+        sleep 5
+    fi
+done
+
+if [ "\$CLONE_SUCCESS" = false ]; then
+    echo "❌ 克隆失败，尝试使用本地已有代码"
+    # 这里可以添加备用方案，比如使用缓存的代码
+    exit 1
+fi
 
 # 函数：部署单个系统
 deploy_system() {
