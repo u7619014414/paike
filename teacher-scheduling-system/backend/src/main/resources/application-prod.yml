@@ -25,7 +25,7 @@ spring:
 # MyBatis Plus 生产环境配置（关闭SQL日志以提高性能）
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.nolog.NoLoggingImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
     map-underscore-to-camel-case: true
 
 # 生产环境日志配置
